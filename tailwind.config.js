@@ -42,6 +42,7 @@ export default {
           400: '#f0b840',  // PRINCIPAL — alertas, badges urgentes, sol
           500: '#d99a1f',
           600: '#b87a0a',
+          700: '#8c5a05',
         },
         // ===== Verde semántico (positivo: saldos, ocupación, OK) =====
         success: {
