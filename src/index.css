@@ -120,7 +120,7 @@
     @apply box-cell bg-primary-400 text-white hover:bg-primary-500 hover:scale-105;
   }
   .box-cell-warning {
-    @apply box-cell bg-gold-400 text-gold-700 hover:bg-gold-500 hover:scale-105;
+    @apply box-cell bg-gold-400 text-gold-600 hover:bg-gold-500 hover:scale-105;
   }
   .box-cell-empty {
     @apply box-cell bg-sky-50 border-2 border-dashed border-ink-300 text-ink-400 hover:border-primary-400 hover:text-primary-500;
