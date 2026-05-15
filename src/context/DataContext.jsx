@@ -55,7 +55,7 @@ export function DataProvider({ children }) {
 
         const subscribe = (collName, setFn) => {
             return onSnapshot(tenantQuery(collName), snap => {
-                setFn(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setFn(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
             });
         };
 
@@ -75,14 +75,18 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('USERS', setTenantUsers));
 
         if (currentUser) {
-            // Notificaciones filtradas por userId o admins
-            const notifQ = query(collection(db, 'NOTIFICATIONS'));
+            // Notificaciones filtradas server-side para respetar Firestore rules
+            const validRecipients = [currentUser.uid];
+            if (['tenantAdmin', 'superAdmin'].includes(currentUser.role)) {
+                validRecipients.push('ALL_ADMINS');
+            }
+
+            const notifQ = query(
+                collection(db, 'NOTIFICATIONS'),
+                where('recipientId', 'in', validRecipients)
+            );
             unsubs.push(onSnapshot(notifQ, snap => {
-                const allNotifs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setNotifications(allNotifs.filter(n => 
-                    n.recipientId === currentUser.uid || 
-                    (n.recipientId === 'ALL_ADMINS' && ['tenantAdmin', 'superAdmin'].includes(currentUser.role))
-                ));
+                setNotifications(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
             }));
         }
 

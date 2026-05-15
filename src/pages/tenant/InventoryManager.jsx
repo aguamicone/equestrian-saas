@@ -38,14 +38,16 @@ export default function InventoryManager() {
 
     const handleFormSubmit = (e) => {
         e.preventDefault();
+        // Sacar 'id' del payload — Firestore genera el suyo
+        const { id, ...cleanData } = itemForm;
         const data = {
-            ...itemForm,
+            ...cleanData,
             stock: Number(itemForm.stock),
             minStock: Number(itemForm.minStock)
         };
 
         if (isEditing) {
-            updateRow('INVENTORY', itemForm.id, data);
+            updateRow('INVENTORY', id, data);
         } else {
             addInventoryItem(data);
         }
