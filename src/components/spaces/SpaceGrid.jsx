@@ -15,6 +15,7 @@ import { useData } from '../../context/DataContext';
 import { PageHeader, Card, Badge, EmptyState } from '../ui';
 import BoxCell from './BoxCell';
 import SpaceDetailModal from './modals/SpaceDetailModal';
+import CreateSpaceModal from './modals/CreateSpaceModal';
 
 // ====== Filtros disponibles ======
 const FILTERS = [
@@ -347,6 +348,18 @@ export default function SpaceGrid() {
             />
           );
         })()
+      )}
+
+      {modalType === 'create' && (
+        <CreateSpaceModal
+          onClose={() => {
+            setSelectedSpace(null);
+            setModalType(null);
+          }}
+          onCreated={() => {
+            // El onSnapshot del DataContext va a refrescar la grilla automáticamente
+          }}
+        />
       )}
     </div>
   );
