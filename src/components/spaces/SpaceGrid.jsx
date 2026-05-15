@@ -49,7 +49,10 @@ export default function SpaceGrid() {
   // Mapa userId → user para lookup rápido del dueño
   const usersById = useMemo(() => {
     const map = {};
-    (tenantUsers || []).forEach(u => { map[u.uid] = u; });
+    (tenantUsers || []).forEach(u => {
+      if (u.id) map[u.id] = u;
+      if (u.uid) map[u.uid] = u;
+    });
     return map;
   }, [tenantUsers]);
 
