@@ -1,10 +1,9 @@
 // src/components/spaces/BoxCell.jsx
 // Celda individual de la grilla de caballerizas.
-// Maneja 4 estados: available, occupied, occupied-alert, maintenance.
-// En modo edición muestra un botón de acciones (3 puntos).
+// Maneja 5 estados: available, reserved, occupied, occupied-alert, maintenance.
+// En modo edición muestra un botón de acciones (3 puntos) en TODOS los estados.
 
-import { MoreVertical, Plus, Wrench, AlertCircle } from 'lucide-react';
-import { Badge } from '../ui';
+import { MoreVertical, Plus, Wrench, AlertCircle, Bookmark } from 'lucide-react';
 
 /**
  * Props:
@@ -30,6 +29,7 @@ export default function BoxCell({
   // ===== Determinar variante visual =====
   const isOccupied = space.status === 'occupied' && horse;
   const isMaintenance = space.status === 'maintenance';
+  const isReserved = space.status === 'reserved';
   const isAvailable = space.status === 'available';
 
   // ===== Clases según estado =====
@@ -39,6 +39,10 @@ export default function BoxCell({
   if (isMaintenance) {
     cellClasses = 'bg-ink-50 border-ink-200 hover:border-ink-300';
     textClasses = 'text-ink-500';
+  } else if (isReserved) {
+    // Reservado: visual entre "libre" y "ocupado". Tono lavanda/indigo suave.
+    cellClasses = 'bg-sky-50 border-sky-300 hover:border-sky-400';
+    textClasses = 'text-sky-700';
   } else if (isOccupied && hasAlert) {
     cellClasses = 'bg-gold-50 border-gold-300 hover:border-gold-400 hover:shadow-card-hover';
     textClasses = 'text-gold-700';
@@ -73,8 +77,8 @@ export default function BoxCell({
           </div>
         </div>
 
-        {/* Botón de acciones (solo en edit mode + box ocupado) */}
-        {editMode && isOccupied && (
+        {/* Botón de acciones (en edit mode + cualquier estado excepto mantenimiento) */}
+        {editMode && !isMaintenance && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -115,6 +119,19 @@ export default function BoxCell({
             {ownerDebt > 0 && (
               <div className="mt-1 text-[9px] text-danger-600 font-medium tracking-wide">
                 Con deuda
+              </div>
+            )}
+          </div>
+        )}
+
+        {isReserved && (
+          <div className="flex flex-col items-center text-center w-full text-sky-700">
+            <Bookmark size={18} strokeWidth={1.5} fill="currentColor" className="opacity-80" />
+            <span className="text-[10px] uppercase tracking-wider mt-1 font-medium">Reservado</span>
+            {/* Si tiene nota de reserva, mostrarla truncada */}
+            {space.reservedFor && (
+              <div className="text-[10px] text-sky-600 truncate w-full leading-tight mt-0.5 italic">
+                {space.reservedFor}
               </div>
             )}
           </div>

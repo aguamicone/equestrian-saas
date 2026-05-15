@@ -16,18 +16,22 @@ import { PageHeader, Card, Badge, EmptyState } from '../ui';
 import BoxCell from './BoxCell';
 import SpaceDetailModal from './modals/SpaceDetailModal';
 import CreateSpaceModal from './modals/CreateSpaceModal';
+import ActionsMenu from './modals/ActionsMenu';
+import MoveHorseModal from './modals/MoveHorseModal';
+import ReleaseHorseModal from './modals/ReleaseHorseModal';
 
 // ====== Filtros disponibles ======
 const FILTERS = [
   { key: 'all',         label: 'Todos' },
   { key: 'occupied',    label: 'Ocupados' },
   { key: 'available',   label: 'Libres' },
+  { key: 'reserved',    label: 'Reservados' },
   { key: 'alert',       label: 'Atención' },
   { key: 'maintenance', label: 'Mantenimiento' },
 ];
 
 export default function SpaceGrid() {
-  const { spaces, horses, finances, tenantUsers, pricingPlans } = useData();
+  const { spaces, horses, finances, tenantUsers, pricingPlans, updateRow } = useData();
 
   const [editMode, setEditMode] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -36,6 +40,7 @@ export default function SpaceGrid() {
   // Estado para modales
   const [selectedSpace, setSelectedSpace] = useState(null);
   const [modalType, setModalType] = useState(null); // 'detail' | 'assign' | 'move' | 'release' | 'create'
+  const [anchorRect, setAnchorRect] = useState(null);
 
   // ====== Cálculos memoizados ======
 
@@ -82,11 +87,12 @@ export default function SpaceGrid() {
     const total = spaces.length;
     const occupied = spaces.filter(s => s.status === 'occupied').length;
     const available = spaces.filter(s => s.status === 'available').length;
+    const reserved = spaces.filter(s => s.status === 'reserved').length;
     const maintenance = spaces.filter(s => s.status === 'maintenance').length;
     const alerts = spaces.filter(s => getHasAlert(s)).length;
     const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
-    return { total, occupied, available, maintenance, alerts, pct };
+    return { total, occupied, available, reserved, maintenance, alerts, pct };
   }, [spaces, horsesById, debtsByOwner]);
 
   // Spaces filtrados según filtro activo + búsqueda
@@ -98,6 +104,8 @@ export default function SpaceGrid() {
       result = result.filter(s => s.status === 'occupied');
     } else if (filter === 'available') {
       result = result.filter(s => s.status === 'available');
+    } else if (filter === 'reserved') {
+      result = result.filter(s => s.status === 'reserved');
     } else if (filter === 'maintenance') {
       result = result.filter(s => s.status === 'maintenance');
     } else if (filter === 'alert') {
@@ -146,9 +154,44 @@ export default function SpaceGrid() {
   };
 
   const handleBoxActionsClick = (space, event) => {
-    // 1.3b-ii: acá va a abrir el menú de "Mover / Liberar / Mantenimiento"
+    // Capturamos la posición del botón clickeado para anclar el popover
+    if (event?.currentTarget) {
+      setAnchorRect(event.currentTarget.getBoundingClientRect());
+    } else {
+      setAnchorRect(null);
+    }
     setSelectedSpace(space);
     setModalType('actions');
+  };
+
+  const closeAllModals = () => {
+    setSelectedSpace(null);
+    setModalType(null);
+    setAnchorRect(null);
+  };
+
+  const handleSelectMove = () => {
+    setModalType('move');
+    setAnchorRect(null);
+  };
+
+  const handleSelectMaintenance = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    if (!window.confirm(`¿Marcar ${space.name} como en mantenimiento? El caballo será desasignado.`)) {
+      return;
+    }
+    // Marcar el space como mantenimiento + soltar al caballo (sin archivarlo)
+    await updateRow('SPACES', space.id, {
+      status: 'maintenance',
+      horseId: null,
+    });
+  };
+
+  const handleSelectRelease = () => {
+    setModalType('release');
+    setAnchorRect(null);
   };
 
   const handleCreateSpace = () => {
@@ -361,6 +404,62 @@ export default function SpaceGrid() {
           }}
         />
       )}
+
+      {/* ===== ActionsMenu (popover/modal según device) ===== */}
+      {modalType === 'actions' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          return (
+            <ActionsMenu
+              space={selectedSpace}
+              horse={horse}
+              anchorRect={anchorRect}
+              onClose={closeAllModals}
+              onSelectMove={handleSelectMove}
+              onSelectMaintenance={handleSelectMaintenance}
+              onSelectRelease={handleSelectRelease}
+            />
+          );
+        })()
+      )}
+
+      {/* ===== MoveHorseModal ===== */}
+      {modalType === 'move' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          if (!horse) return null; // safety: no debería pasar pero por si las moscas
+          return (
+            <MoveHorseModal
+              fromSpace={selectedSpace}
+              horse={horse}
+              onClose={closeAllModals}
+              onMoved={() => {}}
+            />
+          );
+        })()
+      )}
+
+      {/* ===== ReleaseHorseModal ===== */}
+      {modalType === 'release' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          if (!horse) return null;
+          const owner = horse?.ownerId ? usersById[horse.ownerId] : null;
+          const pendingPayments = (finances || []).filter(
+            f => f.clientId === horse?.ownerId && f.status === 'pending'
+          );
+          return (
+            <ReleaseHorseModal
+              space={selectedSpace}
+              horse={horse}
+              owner={owner}
+              pendingPayments={pendingPayments}
+              onClose={closeAllModals}
+              onReleased={() => {}}
+            />
+          );
+        })()
+      )}
     </div>
   );
 }
@@ -395,6 +494,7 @@ function getCountForFilter(key, stats) {
     case 'all':         return stats.total;
     case 'occupied':    return stats.occupied;
     case 'available':   return stats.available;
+    case 'reserved':    return stats.reserved;
     case 'alert':       return stats.alerts;
     case 'maintenance': return stats.maintenance;
     default:            return 0;
