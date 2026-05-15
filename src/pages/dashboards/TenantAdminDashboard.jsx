@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  Horse, Users, TrendingUp, TrendingDown,
+  Activity, Users, TrendingUp, TrendingDown,
   Stethoscope, Mail, Package, Sun
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -68,14 +68,7 @@ export default function TenantAdminDashboard() {
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <button className="btn-secondary">
-            Ver actividad
-          </button>
-          <button className="btn-primary">
-            Nueva acción
-          </button>
-        </div>
+
       </div>
 
       {/* ===== KPIs ===== */}
@@ -88,7 +81,7 @@ export default function TenantAdminDashboard() {
 
           <div className="relative">
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-white/85 mb-3">
-              <Horse size={12} strokeWidth={2} />
+              <Activity size={12} strokeWidth={2} />
               Caballos activos
             </div>
             <div className="flex items-baseline gap-2">
