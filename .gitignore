@@ -35,3 +35,8 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Firebase Admin credentials — NEVER commit
+scripts/serviceAccount.json
+scripts/*serviceAccountKey*.json
+**/firebase-adminsdk-*.json
