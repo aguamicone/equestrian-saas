@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.input-field {
+  @apply w-full bg-slate-700/50 backdrop-blur-sm border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all;
+}
+
+.glass-panel {
+  @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl;
+}
+
+.glass-card {
+  @apply bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700/60 shadow-lg relative overflow-hidden;
+}
+
+.btn-glass {
+  @apply bg-slate-800/50 backdrop-blur-sm border border-slate-600 hover:border-gold-500 hover:text-gold-500 rounded-lg text-slate-300 font-medium transition-colors px-4 py-2;
+}
+
+.btn-primary {
+  @apply bg-gold-500 hover:bg-gold-400 text-slate-900 font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Custom Scrollbar for dashboards */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* iOS Safe Area Utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(3.5rem + env(safe-area-inset-bottom));
+}

@@ -1,0 +1,25 @@
+{
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "(?<tenant>.*).equestrian.app"
+                }
+            ],
+            "destination": "/?tenant=$tenant"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Frame-Options",
+                    "value": "DENY"
+                }
+            ]
+        }
+    ]
+}

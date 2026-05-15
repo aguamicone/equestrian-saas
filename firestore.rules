@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/USERS/$(request.auth.uid)).data;
+    }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && getUserData().role == 'superAdmin';
+    }
+    
+    function belongsToTenant(tenantId) {
+      return isSignedIn() && (
+        getUserData().tenantId == tenantId || 
+        (getUserData().tenantIds != null && getUserData().tenantIds.hasAny([tenantId]))
+      );
+    }
+
+    function isTenantAdmin(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'tenantAdmin';
+    }
+    
+    function isStaff(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'staff';
+    }
+    
+    function isClient(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'client';
+    }
+
+    // --- Collection Rules ---
+
+    match /TENANTS/{tenantId} {
+      allow read: if true; // Public for discovery/subdomain check
+      allow write: if isSuperAdmin();
+    }
+
+    match /USERS/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    match /SPACES/{spaceId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff'));
+    }
+
+    match /HORSES/{horseId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && getUserData().role == 'tenantAdmin');
+    }
+
+    match /FINANCES/{financeId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && getUserData().role == 'tenantAdmin');
+    }
+
+    match /INVENTORY/{itemId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff'));
+    }
+
+    match /INVENTORY_LOGS/{logId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSignedIn() && belongsToTenant(request.resource.data.tenantId);
+    }
+
+    match /ROUTINES/{routineId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff'));
+    }
+
+    match /NOTIFICATIONS/{notifId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.recipientId || resource.data.recipientId == 'ALL_ADMINS');
+      allow write: if isSignedIn();
+    }
+
+    match /EVENTS/{eventId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow write: if isSuperAdmin() || (isSignedIn() && belongsToTenant(request.resource.data.tenantId) && (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff'));
+      // Clients can update to confirm attendance
+      allow update: if isClient(resource.data.tenantId);
+    }
+    
+    match /{path=**} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
