@@ -5,20 +5,20 @@
 /**
  * Props:
  *   children: contenido (texto)
- *   tone: 'primary' | 'gold' | 'success' | 'danger' | 'neutral' (default 'neutral')
+ *   variant: 'primary' | 'gold' | 'success' | 'danger' | 'neutral' | 'sky' (default 'neutral')
  *   size: 'sm' | 'md' (default 'md')
  *   icon: ícono Lucide opcional
  *   pulse: boolean — si true, anima con pulse-soft
  */
 export default function Badge({
   children,
-  tone = 'neutral',
+  variant = 'neutral',
   size = 'md',
   icon: Icon = null,
   pulse = false,
   className = '',
 }) {
-  const tones = {
+  const variants = {
     primary: 'bg-primary-50 text-primary-700 border-primary-100',
     gold:    'bg-gold-50 text-gold-600 border-gold-100',
     success: 'bg-success-50 text-success-700 border-success-100',
@@ -38,7 +38,7 @@ export default function Badge({
     <span
       className={`
         inline-flex items-center gap-1 rounded-full font-medium tracking-wider uppercase border
-        ${tones[tone]} ${sizes[size]}
+        ${variants[variant]} ${sizes[size]}
         ${pulse ? 'animate-pulse-soft' : ''}
         ${className}
       `}

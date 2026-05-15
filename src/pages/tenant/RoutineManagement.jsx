@@ -130,7 +130,7 @@ export default function RoutineManagement() {
                         <span className="text-ink-700">{r.assigneeName}</span>
                     </div>
                 ) : (
-                    <Badge tone="neutral" size="sm">General</Badge>
+                    <Badge variant="neutral" size="sm">General</Badge>
                 )
             ),
         },
@@ -344,13 +344,13 @@ function FrequencyBadge({ routine }) {
 
     // Caso simple: presets conocidos → badge directo
     if (mode === 'daily') {
-        return <Badge tone="primary" size="sm" icon={Repeat}>Diario</Badge>;
+        return <Badge variant="primary" size="sm" icon={Repeat}>Diario</Badge>;
     }
     if (mode === 'weekdays') {
-        return <Badge tone="sky" size="sm" icon={CalendarDays}>L–V</Badge>;
+        return <Badge variant="sky" size="sm" icon={CalendarDays}>L–V</Badge>;
     }
     if (mode === 'weekends') {
-        return <Badge tone="gold" size="sm" icon={CalendarDays}>Fin de semana</Badge>;
+        return <Badge variant="gold" size="sm" icon={CalendarDays}>Fin de semana</Badge>;
     }
 
     // Custom: mostrar las iniciales de los días
@@ -360,7 +360,7 @@ function FrequencyBadge({ routine }) {
         .join('·');
 
     return (
-        <Badge tone="neutral" size="sm" icon={Calendar}>
+        <Badge variant="neutral" size="sm" icon={Calendar}>
             {labels || '—'}
         </Badge>
     );

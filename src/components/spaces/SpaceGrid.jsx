@@ -14,6 +14,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { PageHeader, Card, Badge, EmptyState } from '../ui';
 import BoxCell from './BoxCell';
+import SpaceDetailModal from './modals/SpaceDetailModal';
 
 // ====== Filtros disponibles ======
 const FILTERS = [
@@ -25,16 +26,14 @@ const FILTERS = [
 ];
 
 export default function SpaceGrid() {
-  const { spaces, horses, finances, tenantUsers } = useData();
+  const { spaces, horses, finances, tenantUsers, pricingPlans } = useData();
 
   const [editMode, setEditMode] = useState(false);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  // Estado para futuros modales (1.3b-ii lo va a usar)
-  // eslint-disable-next-line no-unused-vars
+  // Estado para modales
   const [selectedSpace, setSelectedSpace] = useState(null);
-  // eslint-disable-next-line no-unused-vars
   const [modalType, setModalType] = useState(null); // 'detail' | 'assign' | 'move' | 'release' | 'create'
 
   // ====== Cálculos memoizados ======
@@ -320,15 +319,35 @@ export default function SpaceGrid() {
         </div>
       )}
 
-      {/* ===== Placeholder para modales (1.3b-ii) =====
-          Cuando llegue el 1.3b-ii vamos a renderizar acá:
-            - SpaceDetailModal (modalType === 'detail')
-            - AssignHorseModal (modalType === 'assign')
-            - MoveHorseModal (modalType === 'move')
-            - ReleaseHorseModal (modalType === 'release')
-            - CreateSpaceModal (modalType === 'create')
-            - ActionsMenu (modalType === 'actions')
-      ============================================================ */}
+      {/* ===== Modales del SpaceGrid ===== */}
+      {modalType === 'detail' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          const owner = horse?.ownerId ? usersById[horse.ownerId] : null;
+          const ownerDebt = horse?.ownerId ? (debtsByOwner[horse.ownerId] || 0) : 0;
+          // El caballo puede tener varios planes asignados; tomamos el primero
+          // como "plan activo". Más adelante, si querés, agregamos lógica de
+          // "plan principal" o "plan más reciente".
+          const planId = horse?.assignedPlanIds?.[0];
+          const pricingPlan = planId
+            ? (pricingPlans || []).find(p => p.id === planId)
+            : null;
+
+          return (
+            <SpaceDetailModal
+              space={selectedSpace}
+              horse={horse}
+              owner={owner}
+              ownerDebt={ownerDebt}
+              pricingPlan={pricingPlan}
+              onClose={() => {
+                setSelectedSpace(null);
+                setModalType(null);
+              }}
+            />
+          );
+        })()
+      )}
     </div>
   );
 }

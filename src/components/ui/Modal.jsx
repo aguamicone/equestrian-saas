@@ -17,30 +17,35 @@ import { X } from 'lucide-react';
  */
 export default function Modal({
   open,
+  isOpen,
   onClose,
   title,
   subtitle = null,
   size = 'md',
+  hideDefaultHeader = false,
   children,
   footer = null,
 }) {
+  // Soportar tanto "open" como "isOpen" para compatibilidad
+  const isVisible = open ?? isOpen ?? false;
+
   // Cerrar con ESC
   useEffect(() => {
-    if (!open) return;
+    if (!isVisible) return;
     const handleEsc = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
-  }, [open, onClose]);
+  }, [isVisible, onClose]);
 
   // Bloquear scroll del body cuando está abierto
   useEffect(() => {
-    if (open) {
+    if (isVisible) {
       document.body.style.overflow = 'hidden';
       return () => { document.body.style.overflow = ''; };
     }
-  }, [open]);
+  }, [isVisible]);
 
-  if (!open) return null;
+  if (!isVisible) return null;
 
   const sizes = {
     sm: 'max-w-sm',
@@ -59,22 +64,24 @@ export default function Modal({
         className={`w-full ${sizes[size]} bg-white rounded-2xl shadow-2xl border border-ink-200 animate-fade-in-up max-h-[90vh] flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-ink-100 flex items-start justify-between gap-4 flex-shrink-0">
-          <div className="min-w-0">
-            <h3 className="font-display text-lg font-medium text-ink-800">{title}</h3>
-            {subtitle && (
-              <p className="text-xs text-ink-500 mt-0.5">{subtitle}</p>
-            )}
+        {/* Header (ocultable con hideDefaultHeader para headers custom) */}
+        {!hideDefaultHeader && (
+          <div className="px-6 py-4 border-b border-ink-100 flex items-start justify-between gap-4 flex-shrink-0">
+            <div className="min-w-0">
+              <h3 className="font-display text-lg font-medium text-ink-800">{title}</h3>
+              {subtitle && (
+                <p className="text-xs text-ink-500 mt-0.5">{subtitle}</p>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="text-ink-400 hover:text-ink-700 transition-colors p-1 rounded-lg hover:bg-ink-100"
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-ink-400 hover:text-ink-700 transition-colors p-1 rounded-lg hover:bg-ink-100"
-            aria-label="Cerrar"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        )}
 
         {/* Body */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
