@@ -19,6 +19,9 @@ import CreateSpaceModal from './modals/CreateSpaceModal';
 import ActionsMenu from './modals/ActionsMenu';
 import MoveHorseModal from './modals/MoveHorseModal';
 import ReleaseHorseModal from './modals/ReleaseHorseModal';
+import SpaceAdminMenu from './modals/SpaceAdminMenu';
+import ReserveSpaceModal from './modals/ReserveSpaceModal';
+import EditSpaceModal from './modals/EditSpaceModal';
 
 // ====== Filtros disponibles ======
 const FILTERS = [
@@ -31,7 +34,7 @@ const FILTERS = [
 ];
 
 export default function SpaceGrid() {
-  const { spaces, horses, finances, tenantUsers, pricingPlans, updateRow } = useData();
+  const { spaces, horses, finances, tenantUsers, pricingPlans, updateRow, deleteRow } = useData();
 
   const [editMode, setEditMode] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -154,14 +157,19 @@ export default function SpaceGrid() {
   };
 
   const handleBoxActionsClick = (space, event) => {
-    // Capturamos la posición del botón clickeado para anclar el popover
     if (event?.currentTarget) {
       setAnchorRect(event.currentTarget.getBoundingClientRect());
     } else {
       setAnchorRect(null);
     }
     setSelectedSpace(space);
-    setModalType('actions');
+    // Routear según el estado del box
+    if (space.status === 'occupied') {
+      setModalType('actions');
+    } else if (space.status === 'available' || space.status === 'reserved') {
+      setModalType('admin-actions');
+    }
+    // Mantenimiento no tiene menú (no debería haber ⋮ en esos boxes)
   };
 
   const closeAllModals = () => {
@@ -192,6 +200,49 @@ export default function SpaceGrid() {
   const handleSelectRelease = () => {
     setModalType('release');
     setAnchorRect(null);
+  };
+
+  // --- Handlers para boxes libres/reservados ---
+
+  const handleSelectReserve = () => {
+    // Abre el modal de reserva en modo 'create'
+    setModalType('reserve-create');
+    setAnchorRect(null);
+  };
+
+  const handleSelectCancelReserve = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    // Volver el space a disponible + limpiar campos de reserva.
+    // Sin confirmación (decisión: es reversible).
+    await updateRow('SPACES', space.id, {
+      status: 'available',
+      reservedFor: null,
+      reservedForClientId: null,
+      reservedNote: null,
+      reservedAt: null,
+    });
+  };
+
+  const handleSelectEditReserve = () => {
+    setModalType('reserve-edit');
+    setAnchorRect(null);
+  };
+
+  const handleSelectEditSpace = () => {
+    setModalType('edit-space');
+    setAnchorRect(null);
+  };
+
+  const handleSelectDeleteSpace = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    if (!window.confirm(`¿Borrar ${space.name}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    await deleteRow('SPACES', space.id);
   };
 
   const handleCreateSpace = () => {
@@ -459,6 +510,50 @@ export default function SpaceGrid() {
             />
           );
         })()
+      )}
+
+      {/* ===== SpaceAdminMenu (menú de boxes libres/reservados) ===== */}
+      {modalType === 'admin-actions' && selectedSpace && (
+        <SpaceAdminMenu
+          space={selectedSpace}
+          anchorRect={anchorRect}
+          onClose={closeAllModals}
+          onSelectReserve={handleSelectReserve}
+          onSelectCancelReserve={handleSelectCancelReserve}
+          onSelectEditReserve={handleSelectEditReserve}
+          onSelectMaintenance={handleSelectMaintenance}
+          onSelectEdit={handleSelectEditSpace}
+          onSelectDelete={handleSelectDeleteSpace}
+        />
+      )}
+
+      {/* ===== ReserveSpaceModal (modo create: box available → reserved) ===== */}
+      {modalType === 'reserve-create' && selectedSpace && (
+        <ReserveSpaceModal
+          space={selectedSpace}
+          mode="create"
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
+      )}
+
+      {/* ===== ReserveSpaceModal (modo edit: editar reserva existente) ===== */}
+      {modalType === 'reserve-edit' && selectedSpace && (
+        <ReserveSpaceModal
+          space={selectedSpace}
+          mode="edit"
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
+      )}
+
+      {/* ===== EditSpaceModal ===== */}
+      {modalType === 'edit-space' && selectedSpace && (
+        <EditSpaceModal
+          space={selectedSpace}
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
       )}
     </div>
   );
