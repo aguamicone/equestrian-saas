@@ -55,7 +55,7 @@ export function DataProvider({ children }) {
 
         const subscribe = (collName, setFn) => {
             return onSnapshot(tenantQuery(collName), snap => {
-                setFn(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setFn(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
             });
         };
 
@@ -75,14 +75,18 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('USERS', setTenantUsers));
 
         if (currentUser) {
-            // Notificaciones filtradas por userId o admins
-            const notifQ = query(collection(db, 'NOTIFICATIONS'));
+            // Notificaciones filtradas server-side para respetar Firestore rules
+            const validRecipients = [currentUser.uid];
+            if (['tenantAdmin', 'superAdmin'].includes(currentUser.role)) {
+                validRecipients.push('ALL_ADMINS');
+            }
+
+            const notifQ = query(
+                collection(db, 'NOTIFICATIONS'),
+                where('recipientId', 'in', validRecipients)
+            );
             unsubs.push(onSnapshot(notifQ, snap => {
-                const allNotifs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setNotifications(allNotifs.filter(n => 
-                    n.recipientId === currentUser.uid || 
-                    (n.recipientId === 'ALL_ADMINS' && ['tenantAdmin', 'superAdmin'].includes(currentUser.role))
-                ));
+                setNotifications(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
             }));
         }
 
@@ -323,6 +327,239 @@ export function DataProvider({ children }) {
         await updateDoc(doc(db, coll, id), data);
     };
 
+    const releaseSpace = async (spaceId) => {
+        try {
+            await updateDoc(doc(db, 'SPACES', spaceId), {
+                status: 'available',
+                horseId: null,
+            });
+            notify('Espacio liberado', 'success');
+            return { success: true };
+        } catch (e) {
+            console.error(e);
+            notify('Error al liberar el espacio', 'error');
+            return { success: false, error: e };
+        }
+    };
+
+    const archiveHorse = async (horseId, reason = '') => {
+        try {
+            // 1. Buscar si el caballo está en algún espacio
+            const horseSpace = spaces.find(s => s.horseId === horseId);
+
+            // 2. Marcar caballo como archivado
+            await updateDoc(doc(db, 'HORSES', horseId), {
+                active: false,
+                archivedAt: new Date().toISOString(),
+                archivedReason: reason,
+            });
+
+            // 3. Si tenía espacio asignado, liberarlo
+            if (horseSpace) {
+                await updateDoc(doc(db, 'SPACES', horseSpace.id), {
+                    status: 'available',
+                    horseId: null,
+                });
+            }
+
+            // 4. Log de auditoría
+            await addDoc(collection(db, 'LOGS'), {
+                tenantId: currentTenant.id,
+                timestamp: new Date().toISOString(),
+                staffName: currentUser?.displayName || 'Sistema',
+                type: 'horse_archived',
+                horseId,
+                details: `Caballo dado de baja${reason ? ': ' + reason : ''}`,
+            });
+
+            notify('Caballo dado de baja correctamente', 'success');
+            return { success: true };
+        } catch (e) {
+            console.error(e);
+            notify('Error al dar de baja el caballo', 'error');
+            return { success: false, error: e };
+        }
+    };
+
+    const moveHorseToSpace = async (horseId, fromSpaceId, toSpaceId) => {
+        try {
+            const fromSpace = spaces.find(s => s.id === fromSpaceId);
+            const toSpace = spaces.find(s => s.id === toSpaceId);
+
+            if (!toSpace) {
+                notify('Espacio destino no encontrado', 'error');
+                return { success: false };
+            }
+
+            // ¿El destino está ocupado? → enroque
+            const isSwap = toSpace.status === 'occupied' && toSpace.horseId;
+            const swappedHorseId = isSwap ? toSpace.horseId : null;
+
+            // 1. Asignar caballo al destino
+            await updateDoc(doc(db, 'SPACES', toSpaceId), {
+                status: 'occupied',
+                horseId,
+            });
+
+            // 2. Origen: si hay enroque, recibe al otro caballo; sino, queda libre
+            if (fromSpaceId) {
+                if (isSwap) {
+                    await updateDoc(doc(db, 'SPACES', fromSpaceId), {
+                        status: 'occupied',
+                        horseId: swappedHorseId,
+                    });
+                } else {
+                    await updateDoc(doc(db, 'SPACES', fromSpaceId), {
+                        status: 'available',
+                        horseId: null,
+                    });
+                }
+            }
+
+            // 3. Actualizar location del caballo según tipo de destino
+            const newLocation = toSpace.type === 'box' ? 'box' : toSpace.type; // 'box' | 'corral' | 'paddock'
+            await updateDoc(doc(db, 'HORSES', horseId), { location: newLocation });
+
+            // Si fue enroque, también actualizar el caballo desplazado
+            if (isSwap && fromSpace) {
+                const swappedLocation = fromSpace.type === 'box' ? 'box' : fromSpace.type;
+                await updateDoc(doc(db, 'HORSES', swappedHorseId), { location: swappedLocation });
+            }
+
+            // 4. Log de auditoría
+            const fromName = fromSpace?.name || 'sin asignar';
+            const toName = toSpace.name;
+            const logDetails = isSwap
+                ? `Enroque: ${fromName} ↔ ${toName}`
+                : `Movido de ${fromName} a ${toName}`;
+
+            await addDoc(collection(db, 'LOGS'), {
+                tenantId: currentTenant.id,
+                timestamp: new Date().toISOString(),
+                staffName: currentUser?.displayName || 'Sistema',
+                type: 'horse_moved',
+                horseId,
+                details: logDetails,
+            });
+
+            // 5. Notificaciones a clientes afectados
+            const horse = horses.find(h => h.id === horseId);
+            if (horse?.ownerId) {
+                await addDoc(collection(db, 'NOTIFICATIONS'), {
+                    tenantId: currentTenant.id,
+                    recipientId: horse.ownerId,
+                    timestamp: new Date().toISOString(),
+                    message: `Tu caballo ${horse.name} fue movido a ${toName}`,
+                    type: 'horse_moved',
+                    read: false,
+                });
+            }
+
+            if (isSwap) {
+                const swappedHorse = horses.find(h => h.id === swappedHorseId);
+                if (swappedHorse?.ownerId) {
+                    await addDoc(collection(db, 'NOTIFICATIONS'), {
+                        tenantId: currentTenant.id,
+                        recipientId: swappedHorse.ownerId,
+                        timestamp: new Date().toISOString(),
+                        message: `Tu caballo ${swappedHorse.name} fue movido a ${fromName}`,
+                        type: 'horse_moved',
+                        read: false,
+                    });
+                }
+            }
+
+            notify(
+                isSwap ? `Enroque realizado: ${fromName} ↔ ${toName}` : `Caballo movido a ${toName}`,
+                'success'
+            );
+            return { success: true, isSwap };
+        } catch (e) {
+            console.error(e);
+            notify('Error al mover el caballo', 'error');
+            return { success: false, error: e };
+        }
+    };
+
+    const createClientWithHorse = async ({ client, horse, spaceId }) => {
+        try {
+            // 1. Generar uid para el cliente nuevo (Firebase usa el email como doc ID en este proyecto)
+            const clientDocId = client.email || `client-${Date.now()}`;
+
+            // 2. Crear usuario cliente
+            await setDoc(doc(db, 'USERS', clientDocId), {
+                uid: clientDocId,
+                email: client.email,
+                displayName: client.displayName,
+                phoneNumber: client.phoneNumber || '',
+                role: 'client',
+                tenantId: currentTenant.id,
+                tenantIds: [currentTenant.id],
+                createdAt: new Date().toISOString(),
+            });
+
+            // 3. Crear caballo y obtener su ID real de Firestore
+            const horseRef = await addDoc(collection(db, 'HORSES'), {
+                tenantId: currentTenant.id,
+                ownerId: clientDocId,
+                active: true,
+                location: 'box',
+                ...horse,
+            });
+
+            // 4. Asignar al box (si se pasó spaceId)
+            if (spaceId) {
+                await updateDoc(doc(db, 'SPACES', spaceId), {
+                    status: 'occupied',
+                    horseId: horseRef.id,
+                });
+            }
+
+            // 5. Log de auditoría
+            await addDoc(collection(db, 'LOGS'), {
+                tenantId: currentTenant.id,
+                timestamp: new Date().toISOString(),
+                staffName: currentUser?.displayName || 'Sistema',
+                type: 'horse_admitted',
+                horseId: horseRef.id,
+                details: `Alta de ${horse.name} (dueño: ${client.displayName})`,
+            });
+
+            notify('Caballo y cliente registrados correctamente', 'success');
+            return { success: true, horseId: horseRef.id, clientId: clientDocId };
+        } catch (e) {
+            console.error(e);
+            notify('Error al registrar caballo', 'error');
+            return { success: false, error: e };
+        }
+    };
+
+    const assignExistingHorseToSpace = async (spaceId, horseId) => {
+        try {
+            const targetSpace = spaces.find(s => s.id === spaceId);
+            if (!targetSpace) {
+                notify('Espacio no encontrado', 'error');
+                return { success: false };
+            }
+
+            await updateDoc(doc(db, 'SPACES', spaceId), {
+                status: 'occupied',
+                horseId,
+            });
+
+            // Actualizar location del caballo según tipo de espacio
+            const newLocation = targetSpace.type === 'box' ? 'box' : targetSpace.type;
+            await updateDoc(doc(db, 'HORSES', horseId), { location: newLocation });
+
+            notify('Caballo asignado al espacio', 'success');
+            return { success: true };
+        } catch (e) {
+            console.error(e);
+            notify('Error al asignar caballo', 'error');
+            return { success: false, error: e };
+        }
+    };
+
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
@@ -332,7 +569,9 @@ export function DataProvider({ children }) {
         addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,
         addInventoryItem, logStockUsage, updateStock, updateUserSalary, addAdvance, addEvent,
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
-        getLogsForHorse, getFinanceForUser
+        getLogsForHorse, getFinanceForUser,
+        
+        releaseSpace, archiveHorse, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace
     };
 
     return (

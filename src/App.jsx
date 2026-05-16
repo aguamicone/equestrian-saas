@@ -74,12 +74,7 @@ function App() {
                             }>
                                 <Route index element={<TenantAdminDashboard />} />
                                 <Route path="routines" element={<RoutineManagement />} />
-                                <Route path="spaces" element={
-                                    <div>
-                                        <h2 className="text-3xl font-bold text-slate-100 mb-6">Space Management</h2>
-                                        <SpaceGrid />
-                                    </div>
-                                } />
+                                <Route path="spaces" element={<SpaceGrid />} />
                                 <Route path="horses" element={<HorseManagement />} />
                                 <Route path="finance" element={<FinanceOverview />} />
                                 <Route path="finance/debtors" element={<DebtorsDashboard />} />

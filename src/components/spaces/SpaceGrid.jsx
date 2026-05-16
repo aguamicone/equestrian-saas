@@ -1,335 +1,597 @@
-import { useState } from 'react';
-import { LayoutGrid, Star, X, User, Calendar, DollarSign, Plus } from 'lucide-react';
+// src/components/spaces/SpaceGrid.jsx
+// Componente principal de Caballerizas.
+// Modo lectura por default. Toggle "Modo edición" para mover/liberar.
+//
+// NOTA 1.3b-i: Los modales todavía no están conectados.
+//              Los clicks solo cambian estado interno, no abren nada.
+//              Eso se completa en 1.3b-ii.
+
+import { useState, useMemo } from 'react';
+import {
+  Plus, Pencil, X as XIcon, Sparkles, Boxes,
+  Search, AlertCircle, CheckCircle2, Wrench
+} from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { PageHeader, Card, Badge, EmptyState } from '../ui';
+import BoxCell from './BoxCell';
+import SpaceDetailModal from './modals/SpaceDetailModal';
+import CreateSpaceModal from './modals/CreateSpaceModal';
+import ActionsMenu from './modals/ActionsMenu';
+import MoveHorseModal from './modals/MoveHorseModal';
+import ReleaseHorseModal from './modals/ReleaseHorseModal';
+import SpaceAdminMenu from './modals/SpaceAdminMenu';
+import ReserveSpaceModal from './modals/ReserveSpaceModal';
+import EditSpaceModal from './modals/EditSpaceModal';
+
+// ====== Filtros disponibles ======
+const FILTERS = [
+  { key: 'all',         label: 'Todos' },
+  { key: 'occupied',    label: 'Ocupados' },
+  { key: 'available',   label: 'Libres' },
+  { key: 'reserved',    label: 'Reservados' },
+  { key: 'alert',       label: 'Atención' },
+  { key: 'maintenance', label: 'Mantenimiento' },
+];
 
 export default function SpaceGrid() {
+  const { spaces, horses, finances, tenantUsers, pricingPlans, updateRow, deleteRow } = useData();
 
-    const [selectedSpace, setSelectedSpace] = useState(null);
-    const { spaces, horses, assignHorseToSpace, addHorse, finances, addSpace, pricingPlans } = useData();
-    const [showAltaForm, setShowAltaForm] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
-    // New Space Modal State
-    const [showNewSpaceModal, setShowNewSpaceModal] = useState(false);
-    const [newSpaceName, setNewSpaceName] = useState('');
-    const [newSpaceType, setNewSpaceType] = useState('box');
-    const [newSpacePrice, setNewSpacePrice] = useState(150000);
+  // Estado para modales
+  const [selectedSpace, setSelectedSpace] = useState(null);
+  const [modalType, setModalType] = useState(null); // 'detail' | 'assign' | 'move' | 'release' | 'create'
+  const [anchorRect, setAnchorRect] = useState(null);
 
-    // Form State for Alta
-    const [newHorseName, setNewHorseName] = useState('');
-    const [newOwnerName, setNewOwnerName] = useState('');
-    const [newOwnerEmail, setNewOwnerEmail] = useState('');
-    const [selectedPlan, setSelectedPlan] = useState('');
+  // ====== Cálculos memoizados ======
 
-    const handleCreateSpace = (e) => {
-        e.preventDefault();
-        addSpace({
-            name: newSpaceName,
-            type: newSpaceType,
-            price: Number(newSpacePrice)
-        });
-        setShowNewSpaceModal(false);
-        setNewSpaceName('');
-        setNewSpacePrice(150000);
-    };
+  // Mapa horseId → horse para lookup rápido
+  const horsesById = useMemo(() => {
+    const map = {};
+    horses.forEach(h => { map[h.id] = h; });
+    return map;
+  }, [horses]);
 
-    const handleSpaceClick = (space) => {
-        setSelectedSpace(space);
-        if (space.status === 'available') {
-            setShowAltaForm(true);
-        } else {
-            setShowAltaForm(false);
+  // Mapa userId → user para lookup rápido del dueño
+  const usersById = useMemo(() => {
+    const map = {};
+    (tenantUsers || []).forEach(u => {
+      if (u.id) map[u.id] = u;
+      if (u.uid) map[u.uid] = u;
+    });
+    return map;
+  }, [tenantUsers]);
+
+  // Mapa ownerId → debt
+  const debtsByOwner = useMemo(() => {
+    const map = {};
+    finances.forEach(f => {
+      if (f.status === 'pending' && f.clientId) {
+        map[f.clientId] = (map[f.clientId] || 0) + f.amount;
+      }
+    });
+    return map;
+  }, [finances]);
+
+  // Helper: determinar si un box tiene alerta
+  // Por ahora: alerta = caballo con deuda. Más adelante puede incluir
+  // vencimientos veterinarios, eventos especiales, etc.
+  const getHasAlert = (space) => {
+    if (space.status !== 'occupied' || !space.horseId) return false;
+    const horse = horsesById[space.horseId];
+    if (!horse) return false;
+    return (debtsByOwner[horse.ownerId] || 0) > 0;
+  };
+
+  // KPIs
+  const stats = useMemo(() => {
+    const total = spaces.length;
+    const occupied = spaces.filter(s => s.status === 'occupied').length;
+    const available = spaces.filter(s => s.status === 'available').length;
+    const reserved = spaces.filter(s => s.status === 'reserved').length;
+    const maintenance = spaces.filter(s => s.status === 'maintenance').length;
+    const alerts = spaces.filter(s => getHasAlert(s)).length;
+    const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+
+    return { total, occupied, available, reserved, maintenance, alerts, pct };
+  }, [spaces, horsesById, debtsByOwner]);
+
+  // Spaces filtrados según filtro activo + búsqueda
+  const filteredSpaces = useMemo(() => {
+    let result = [...spaces];
+
+    // Filtro por estado
+    if (filter === 'occupied') {
+      result = result.filter(s => s.status === 'occupied');
+    } else if (filter === 'available') {
+      result = result.filter(s => s.status === 'available');
+    } else if (filter === 'reserved') {
+      result = result.filter(s => s.status === 'reserved');
+    } else if (filter === 'maintenance') {
+      result = result.filter(s => s.status === 'maintenance');
+    } else if (filter === 'alert') {
+      result = result.filter(s => getHasAlert(s));
+    }
+
+    // Búsqueda por nombre de box o caballo
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(s => {
+        if (s.name.toLowerCase().includes(q)) return true;
+        const horse = horsesById[s.horseId];
+        if (horse && horse.name.toLowerCase().includes(q)) return true;
+        return false;
+      });
+    }
+
+    // Ordenar por nombre (sortable: "Box 1" antes que "Box 10")
+    result.sort((a, b) => {
+      // Extraer número si existe, sino ordenar alfabético
+      const aMatch = a.name.match(/(\d+)/);
+      const bMatch = b.name.match(/(\d+)/);
+      if (aMatch && bMatch) {
+        return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return result;
+  }, [spaces, filter, search, horsesById]);
+
+  // ====== Handlers ======
+
+  const handleBoxClick = (space) => {
+    if (editMode) {
+      // En edit mode, click directo no hace nada (los 3 puntos abren acciones)
+      return;
+    }
+    setSelectedSpace(space);
+    if (space.status === 'occupied') {
+      setModalType('detail');
+    } else if (space.status === 'available') {
+      setModalType('assign');
+    }
+    // 1.3b-ii conectará los modales reales
+  };
+
+  const handleBoxActionsClick = (space, event) => {
+    if (event?.currentTarget) {
+      setAnchorRect(event.currentTarget.getBoundingClientRect());
+    } else {
+      setAnchorRect(null);
+    }
+    setSelectedSpace(space);
+    // Routear según el estado del box
+    if (space.status === 'occupied') {
+      setModalType('actions');
+    } else if (space.status === 'available' || space.status === 'reserved') {
+      setModalType('admin-actions');
+    }
+    // Mantenimiento no tiene menú (no debería haber ⋮ en esos boxes)
+  };
+
+  const closeAllModals = () => {
+    setSelectedSpace(null);
+    setModalType(null);
+    setAnchorRect(null);
+  };
+
+  const handleSelectMove = () => {
+    setModalType('move');
+    setAnchorRect(null);
+  };
+
+  const handleSelectMaintenance = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    if (!window.confirm(`¿Marcar ${space.name} como en mantenimiento? El caballo será desasignado.`)) {
+      return;
+    }
+    // Marcar el space como mantenimiento + soltar al caballo (sin archivarlo)
+    await updateRow('SPACES', space.id, {
+      status: 'maintenance',
+      horseId: null,
+    });
+  };
+
+  const handleSelectRelease = () => {
+    setModalType('release');
+    setAnchorRect(null);
+  };
+
+  // --- Handlers para boxes libres/reservados ---
+
+  const handleSelectReserve = () => {
+    // Abre el modal de reserva en modo 'create'
+    setModalType('reserve-create');
+    setAnchorRect(null);
+  };
+
+  const handleSelectCancelReserve = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    // Volver el space a disponible + limpiar campos de reserva.
+    // Sin confirmación (decisión: es reversible).
+    await updateRow('SPACES', space.id, {
+      status: 'available',
+      reservedFor: null,
+      reservedForClientId: null,
+      reservedNote: null,
+      reservedAt: null,
+    });
+  };
+
+  const handleSelectEditReserve = () => {
+    setModalType('reserve-edit');
+    setAnchorRect(null);
+  };
+
+  const handleSelectEditSpace = () => {
+    setModalType('edit-space');
+    setAnchorRect(null);
+  };
+
+  const handleSelectDeleteSpace = async () => {
+    const space = selectedSpace;
+    closeAllModals();
+    if (!space) return;
+    if (!window.confirm(`¿Borrar ${space.name}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    await deleteRow('SPACES', space.id);
+  };
+
+  const handleCreateSpace = () => {
+    setModalType('create');
+  };
+
+  // ====== Render ======
+
+  return (
+    <div>
+      <PageHeader
+        icon={Boxes}
+        title="Caballerizas"
+        subtitle={`${stats.total} espacios · ${stats.occupied} ocupados`}
+        actions={
+          <>
+            <button
+              onClick={() => setEditMode(!editMode)}
+              className={editMode ? 'btn-primary' : 'btn-secondary'}
+            >
+              {editMode ? <XIcon size={16} /> : <Pencil size={16} />}
+              {editMode ? 'Salir de edición' : 'Editar disposición'}
+            </button>
+            <button onClick={handleCreateSpace} className="btn-primary">
+              <Plus size={16} /> Nuevo espacio
+            </button>
+          </>
         }
-    };
+      />
 
-    const handleAltaSubmit = (e) => {
-        e.preventDefault();
-        // 1. Create Horse (and implicity owner if we were doing real relational DB, here just storing OwnerId as string/mock)
-        // For prototype, we'll generate a random Owner ID or use the name.
-        const ownerId = `user-${newOwnerName.toLowerCase().replace(/\s+/g, '-')}`;
-
-        const horseData = {
-            name: newHorseName,
-            breed: 'Desconocida', // Simplified for quick entry
-            ownerId: ownerId,
-            age: 0,
-            color: 'Desconocido',
-            assignedPlanIds: selectedPlan ? [selectedPlan] : []
-        };
-
-        // We need to add horse first, get ID, then assign. 
-        // Since addHorse is sync in mock:
-        // We'll trust DataContext to handle it, but we need the ID. 
-        // Modified DataContext addHorse doesn't return ID easily without refactor.
-        // For now, we'll manually generate ID here to ensure we have it.
-        const newHorseId = `h${Date.now()}`;
-
-        addHorse({ ...horseData, id: newHorseId }); // Pass ID explicitly if DataContext supports it or just let it overwrite
-        assignHorseToSpace(selectedSpace.id, newHorseId);
-
-        closeModal();
-    };
-
-    const closeModal = () => {
-        setSelectedSpace(null);
-        setShowAltaForm(false);
-        setNewHorseName('');
-        setNewOwnerName('');
-        setNewOwnerEmail('');
-        setSelectedPlan('');
-    };
-
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'available': return 'bg-green-500/10 border-green-500/50 text-green-400 hover:bg-green-500/20';
-            case 'occupied': return 'bg-red-500/10 border-red-500/50 text-red-400 hover:bg-red-500/20';
-            case 'maintenance': return 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/20';
-            default: return 'bg-slate-700 border-slate-600 text-slate-400';
-        }
-    };
-
-    const getResidentHorse = (space) => horses.find(h => h.id === space.horseId);
-
-    const getOwnerDebt = (ownerId) => {
-        return finances
-            .filter(f => f.clientId === ownerId && f.status === 'pending')
-            .reduce((acc, curr) => acc + curr.amount, 0);
-    };
-
-    return (
-        <div>
-            <h3 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-                <LayoutGrid className="text-gold-500" /> Vista de Caballerizas
-            </h3>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {spaces.map(space => {
-                    const horse = getResidentHorse(space);
-                    return (
-                        <div
-                            key={space.id}
-                            onClick={() => handleSpaceClick(space)}
-                            className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center aspect-square ${getStatusColor(space.status)} transition-all hover:scale-105 cursor-pointer relative group`}
-                        >
-                            <div className="text-xl font-bold mb-1">{space.name}</div>
-                            <div className="uppercase text-[10px] font-bold tracking-wider opacity-75">{space.type}</div>
-
-                            {space.status === 'occupied' && horse && (
-                                <div className="mt-2 flex flex-col items-center text-center">
-                                    <span className="text-2xl mb-1">🐴</span>
-                                    <span className="font-bold text-sm leading-tight">{horse.name}</span>
-                                </div>
-                            )}
-                            {space.status === 'available' && (
-                                <div className="mt-2 text-xs opacity-50 flex flex-col items-center">
-                                    <Plus className="opacity-50 group-hover:opacity-100" />
-                                    <span>Disponible</span>
-                                </div>
-                            )}
-                            {space.status === 'maintenance' && (
-                                <div className="mt-2 text-xs opacity-50">Reparaciones</div>
-                            )}
-                        </div>
-                    );
-                })}
-
-                {/* Create Space Tile */}
-                <button
-                    onClick={() => setShowNewSpaceModal(true)}
-                    className="p-4 rounded-lg border-2 border-dashed border-slate-700 flex flex-col items-center justify-center aspect-square text-slate-500 hover:text-white hover:border-slate-500 transition-colors"
-                >
-                    <Plus size={32} />
-                    <span className="font-bold text-sm mt-2">Crear Espacio</span>
-                </button>
-            </div>
-
-            {/* MODAL */}
-            {selectedSpace && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-in">
-                    <div className="glass-card border border-slate-700 w-full max-w-md overflow-hidden shadow-2xl">
-                        {/* Header */}
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                <span className="text-gold-500">{selectedSpace.name}</span>
-                                <span className="text-sm font-normal text-slate-400">({selectedSpace.status === 'available' ? 'Disponible' : 'Ocupado'})</span>
-                            </h3>
-                            <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors">
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        {/* Content: OCCUPIED */}
-                        {selectedSpace.status === 'occupied' && (
-                            <div className="p-6 space-y-6">
-                                {getResidentHorse(selectedSpace) ? (
-                                    <>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center text-4xl border-2 border-slate-600">
-                                                🐴
-                                            </div>
-                                            <div>
-                                                <h4 className="text-2xl font-bold text-white">{getResidentHorse(selectedSpace).name}</h4>
-                                                <p className="text-slate-400">{getResidentHorse(selectedSpace).breed} • {getResidentHorse(selectedSpace).age} años</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-                                            <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
-                                                <span className="text-slate-400 flex items-center gap-2"><User size={16} /> Dueño</span>
-                                                <span className="text-slate-200 font-medium">{getResidentHorse(selectedSpace).ownerId}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
-                                                <span className="text-slate-400 flex items-center gap-2"><Calendar size={16} /> Ingreso</span>
-                                                <span className="text-slate-200">01/03/2024</span>
-                                            </div>
-                                            <div className="flex justify-between items-center py-2">
-                                                <span className="text-slate-400 flex items-center gap-2"><DollarSign size={16} /> Estado</span>
-                                                {getOwnerDebt(getResidentHorse(selectedSpace).ownerId) > 0 ? (
-                                                    <span className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded">
-                                                        Deuda: ${getOwnerDebt(getResidentHorse(selectedSpace).ownerId).toLocaleString()}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-green-400 font-bold bg-green-900/20 px-2 py-1 rounded">Al Día</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center text-slate-500 py-8">
-                                        Error: Caballo no encontrado datos.
-                                    </div>
-                                )}
-                                <div className="flex justify-end">
-                                    <button className="text-red-400 hover:text-red-300 text-sm">Liberar Espacio (Desasignar)</button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Content: AVAILABLE (ALTA) */}
-                        {selectedSpace.status === 'available' && (
-                            <form onSubmit={handleAltaSubmit} className="p-6 space-y-4">
-                                <div className="text-center mb-4">
-                                    <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 mx-auto mb-2 border border-green-500/30">
-                                        <Plus size={32} />
-                                    </div>
-                                    <h4 className="text-lg font-bold text-white">Dar de Alta Nuevo Ingreso</h4>
-                                    <p className="text-sm text-slate-400">Registra un caballo y asígnalo a este box.</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Nombre del Caballo</label>
-                                    <input
-                                        className="input-field"
-                                        placeholder="Ej: Trueno"
-                                        required
-                                        value={newHorseName}
-                                        onChange={e => setNewHorseName(e.target.value)}
-                                        autoFocus
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm text-slate-400 mb-1">Nombre Dueño (Cliente)</label>
-                                        <input
-                                            className="input-field"
-                                            placeholder="Ej: Mario Lopez"
-                                            required
-                                            value={newOwnerName}
-                                            onChange={e => setNewOwnerName(e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm text-slate-400 mb-1">Email Dueño</label>
-                                        <input
-                                            type="email"
-                                            className="input-field"
-                                            placeholder="cliente@email.com"
-                                            value={newOwnerEmail}
-                                            onChange={e => setNewOwnerEmail(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Plan de Pensión</label>
-                                    <select
-                                        className="input-field"
-                                        value={selectedPlan}
-                                        onChange={e => setSelectedPlan(e.target.value)}
-                                        required
-                                    >
-                                        <option value="">Seleccionar Plan...</option>
-                                        {pricingPlans
-                                            .filter(p => p.type === 'membership')
-                                            .map(plan => (
-                                                <option key={plan.id} value={plan.id}>
-                                                    {plan.name} - ${plan.price.toLocaleString()}
-                                                </option>
-                                            ))}
-                                    </select>
-                                </div>
-
-                                <div className="flex gap-3 mt-6">
-                                    <button type="button" onClick={closeModal} className="flex-1 py-3 text-slate-400 hover:text-white font-semibold">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" className="flex-1 btn-primary py-3">
-                                        Confirmar Alta
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* NEW SPACE MODAL */}
-            {showNewSpaceModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="glass-card border border-slate-700 w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-200">
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                            <h3 className="font-bold text-white">Crear Nuevo Espacio</h3>
-                            <button onClick={() => setShowNewSpaceModal(false)}><X className="text-slate-400 hover:text-white" /></button>
-                        </div>
-                        <form onSubmit={handleCreateSpace} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Nombre / Identificador</label>
-                                <input
-                                    className="input-field"
-                                    placeholder="Ej: Box 12"
-                                    required
-                                    value={newSpaceName}
-                                    onChange={e => setNewSpaceName(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Tipo</label>
-                                <select className="input-field" value={newSpaceType} onChange={e => setNewSpaceType(e.target.value)}>
-                                    <option value="box">Box (Interior)</option>
-                                    <option value="corral">Corral (Exterior)</option>
-                                    <option value="paddock">Paddock</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Precio Base</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-2.5 text-slate-500">$</span>
-                                    <input
-                                        type="number"
-                                        className="input-field pl-8"
-                                        value={newSpacePrice}
-                                        onChange={e => setNewSpacePrice(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowNewSpaceModal(false)} className="btn-secondary flex-1">Cancelar</button>
-                                <button type="submit" className="btn-primary flex-1">Crear</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+      {/* ===== Banner de modo edición ===== */}
+      {editMode && (
+        <div className="mb-4 bg-gold-50 border border-gold-200 rounded-xl px-4 py-3 flex items-center gap-3 animate-fade-in">
+          <Sparkles size={18} className="text-gold-600 flex-shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-medium text-gold-700">Modo edición activo.</span>
+            <span className="text-ink-600 ml-1">
+              Tocá el menú (⋮) de cada box ocupado para mover, liberar o cambiar a mantenimiento.
+            </span>
+          </div>
         </div>
-    );
+      )}
+
+      {/* ===== KPIs ===== */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+        <KpiTile
+          label="Ocupación"
+          value={`${stats.pct}%`}
+          accent="primary"
+          subtitle={`${stats.occupied}/${stats.total}`}
+        />
+        <KpiTile
+          label="Libres"
+          value={stats.available}
+          accent="success"
+          subtitle={stats.available === 1 ? 'espacio disponible' : 'espacios disponibles'}
+          icon={CheckCircle2}
+        />
+        <KpiTile
+          label="Atención"
+          value={stats.alerts}
+          accent={stats.alerts > 0 ? 'gold' : 'neutral'}
+          subtitle={stats.alerts === 1 ? 'box con alerta' : 'boxes con alerta'}
+          icon={AlertCircle}
+        />
+        <KpiTile
+          label="Mantenimiento"
+          value={stats.maintenance}
+          accent="neutral"
+          subtitle="fuera de servicio"
+          icon={Wrench}
+        />
+      </div>
+
+      {/* ===== Toolbar: búsqueda + filtros ===== */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        {/* Búsqueda */}
+        <div className="relative sm:max-w-xs flex-1">
+          <Search size={15} strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+          <input
+            type="text"
+            placeholder="Buscar box o caballo..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input-field pl-9"
+          />
+        </div>
+
+        {/* Filtros tipo chips */}
+        <div className="flex gap-1.5 flex-wrap">
+          {FILTERS.map(f => {
+            const count = getCountForFilter(f.key, stats);
+            const isActive = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`
+                  px-3 py-1.5 rounded-full text-xs font-medium border transition-all
+                  flex items-center gap-1.5
+                  ${isActive
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-white text-ink-600 border-ink-200 hover:border-ink-300 hover:bg-ink-50'
+                  }
+                `}
+              >
+                {f.label}
+                <span className={`
+                  text-[10px] px-1.5 rounded-full
+                  ${isActive ? 'bg-white/25 text-white' : 'bg-ink-100 text-ink-600'}
+                `}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ===== Grid de boxes ===== */}
+      {filteredSpaces.length === 0 ? (
+        <Card padding="none">
+          <EmptyState
+            icon={Boxes}
+            message={
+              search
+                ? 'No se encontraron espacios'
+                : filter === 'all'
+                  ? 'Todavía no hay espacios creados'
+                  : 'No hay espacios en esta categoría'
+            }
+            description={
+              !search && filter === 'all'
+                ? 'Creá el primer box para empezar a asignar caballos.'
+                : null
+            }
+            action={
+              !search && filter === 'all' ? (
+                <button onClick={handleCreateSpace} className="btn-primary">
+                  <Plus size={16} /> Nuevo espacio
+                </button>
+              ) : null
+            }
+          />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {filteredSpaces.map(space => {
+            const horse = horsesById[space.horseId];
+            const owner = horse?.ownerId ? usersById[horse.ownerId] : null;
+            return (
+              <BoxCell
+                key={space.id}
+                space={space}
+                horse={horse}
+                owner={owner}
+                ownerDebt={
+                  horse?.ownerId
+                    ? debtsByOwner[horse.ownerId] || 0
+                    : 0
+                }
+                editMode={editMode}
+                hasAlert={getHasAlert(space)}
+                onClick={() => handleBoxClick(space)}
+                onActionsClick={(e) => handleBoxActionsClick(space, e)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* ===== Modales del SpaceGrid ===== */}
+      {modalType === 'detail' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          const owner = horse?.ownerId ? usersById[horse.ownerId] : null;
+          const ownerDebt = horse?.ownerId ? (debtsByOwner[horse.ownerId] || 0) : 0;
+          // El caballo puede tener varios planes asignados; tomamos el primero
+          // como "plan activo". Más adelante, si querés, agregamos lógica de
+          // "plan principal" o "plan más reciente".
+          const planId = horse?.assignedPlanIds?.[0];
+          const pricingPlan = planId
+            ? (pricingPlans || []).find(p => p.id === planId)
+            : null;
+
+          return (
+            <SpaceDetailModal
+              space={selectedSpace}
+              horse={horse}
+              owner={owner}
+              ownerDebt={ownerDebt}
+              pricingPlan={pricingPlan}
+              onClose={() => {
+                setSelectedSpace(null);
+                setModalType(null);
+              }}
+            />
+          );
+        })()
+      )}
+
+      {modalType === 'create' && (
+        <CreateSpaceModal
+          onClose={() => {
+            setSelectedSpace(null);
+            setModalType(null);
+          }}
+          onCreated={() => {
+            // El onSnapshot del DataContext va a refrescar la grilla automáticamente
+          }}
+        />
+      )}
+
+      {/* ===== ActionsMenu (popover/modal según device) ===== */}
+      {modalType === 'actions' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          return (
+            <ActionsMenu
+              space={selectedSpace}
+              horse={horse}
+              anchorRect={anchorRect}
+              onClose={closeAllModals}
+              onSelectMove={handleSelectMove}
+              onSelectMaintenance={handleSelectMaintenance}
+              onSelectRelease={handleSelectRelease}
+            />
+          );
+        })()
+      )}
+
+      {/* ===== MoveHorseModal ===== */}
+      {modalType === 'move' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          if (!horse) return null; // safety: no debería pasar pero por si las moscas
+          return (
+            <MoveHorseModal
+              fromSpace={selectedSpace}
+              horse={horse}
+              onClose={closeAllModals}
+              onMoved={() => {}}
+            />
+          );
+        })()
+      )}
+
+      {/* ===== ReleaseHorseModal ===== */}
+      {modalType === 'release' && selectedSpace && (
+        (() => {
+          const horse = horsesById[selectedSpace.horseId];
+          if (!horse) return null;
+          const owner = horse?.ownerId ? usersById[horse.ownerId] : null;
+          const pendingPayments = (finances || []).filter(
+            f => f.clientId === horse?.ownerId && f.status === 'pending'
+          );
+          return (
+            <ReleaseHorseModal
+              space={selectedSpace}
+              horse={horse}
+              owner={owner}
+              pendingPayments={pendingPayments}
+              onClose={closeAllModals}
+              onReleased={() => {}}
+            />
+          );
+        })()
+      )}
+
+      {/* ===== SpaceAdminMenu (menú de boxes libres/reservados) ===== */}
+      {modalType === 'admin-actions' && selectedSpace && (
+        <SpaceAdminMenu
+          space={selectedSpace}
+          anchorRect={anchorRect}
+          onClose={closeAllModals}
+          onSelectReserve={handleSelectReserve}
+          onSelectCancelReserve={handleSelectCancelReserve}
+          onSelectEditReserve={handleSelectEditReserve}
+          onSelectMaintenance={handleSelectMaintenance}
+          onSelectEdit={handleSelectEditSpace}
+          onSelectDelete={handleSelectDeleteSpace}
+        />
+      )}
+
+      {/* ===== ReserveSpaceModal (modo create: box available → reserved) ===== */}
+      {modalType === 'reserve-create' && selectedSpace && (
+        <ReserveSpaceModal
+          space={selectedSpace}
+          mode="create"
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
+      )}
+
+      {/* ===== ReserveSpaceModal (modo edit: editar reserva existente) ===== */}
+      {modalType === 'reserve-edit' && selectedSpace && (
+        <ReserveSpaceModal
+          space={selectedSpace}
+          mode="edit"
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
+      )}
+
+      {/* ===== EditSpaceModal ===== */}
+      {modalType === 'edit-space' && selectedSpace && (
+        <EditSpaceModal
+          space={selectedSpace}
+          onClose={closeAllModals}
+          onSaved={() => {}}
+        />
+      )}
+    </div>
+  );
+}
+
+// ====== Sub-componente: KPI tile compacto ======
+function KpiTile({ label, value, subtitle, accent = 'neutral', icon: Icon }) {
+  const accentColors = {
+    primary: 'bg-primary-50 border-primary-100 text-primary-700',
+    success: 'bg-success-50 border-success-100 text-success-700',
+    gold:    'bg-gold-50 border-gold-100 text-gold-700',
+    danger:  'bg-danger-50 border-danger-100 text-danger-700',
+    neutral: 'bg-ink-50 border-ink-100 text-ink-700',
+  };
+
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 ${accentColors[accent]}`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider opacity-80 mb-1">
+        {Icon && <Icon size={11} strokeWidth={2} />}
+        {label}
+      </div>
+      <div className="font-display text-xl font-medium leading-none">{value}</div>
+      {subtitle && (
+        <div className="text-[10px] opacity-70 mt-1 truncate">{subtitle}</div>
+      )}
+    </div>
+  );
+}
+
+// ====== Helper: count para cada filtro chip ======
+function getCountForFilter(key, stats) {
+  switch (key) {
+    case 'all':         return stats.total;
+    case 'occupied':    return stats.occupied;
+    case 'available':   return stats.available;
+    case 'reserved':    return stats.reserved;
+    case 'alert':       return stats.alerts;
+    case 'maintenance': return stats.maintenance;
+    default:            return 0;
+  }
 }
