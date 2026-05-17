@@ -17,7 +17,7 @@ const CATEGORIES = ['Alimentación', 'Cama', 'Veterinaria', 'Mantenimiento', 'Ot
 const CATEGORY_VARIANT = {
   'Alimentación': 'success',
   'Cama': 'gold',
-  'Veterinaria': 'danger',
+  'Veterinaria': 'primary',
   'Mantenimiento': 'neutral',
   'Otros': 'sky',
 };
@@ -46,7 +46,7 @@ export default function InventoryManager() {
   // ====== Datos memoizados ======
 
   const lowStockCount = useMemo(() =>
-    inventory.filter(i => i.stock <= i.minStock).length,
+    inventory.filter(i => i.stock < i.minStock).length,
     [inventory]
   );
 
@@ -77,7 +77,7 @@ export default function InventoryManager() {
     let items = inventory;
     if (categoryFilter !== 'all') {
       if (categoryFilter === 'low') {
-        items = items.filter(i => i.stock <= i.minStock);
+        items = items.filter(i => i.stock < i.minStock);
       } else {
         items = items.filter(i => i.category === categoryFilter);
       }
@@ -371,7 +371,16 @@ export default function InventoryManager() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredInventory.map(item => {
-                const isLow = item.stock <= item.minStock;
+                const isLow = item.stock < item.minStock;
+                const isMedium = item.stock >= item.minStock && item.stock < item.minStock * 1.5;
+
+                let stockBadgeClass = 'bg-success-50 text-success-600 border-2 border-success-200';
+                if (isLow) {
+                  stockBadgeClass = 'bg-danger-50 text-danger-600 border-2 border-danger-200 animate-pulse';
+                } else if (isMedium) {
+                  stockBadgeClass = 'bg-gold-50 text-gold-600 border-2 border-gold-200';
+                }
+
                 return (
                   <Card key={item.id} variant="hover" padding="none" className="overflow-hidden">
                     <div className="p-5">
@@ -400,14 +409,7 @@ export default function InventoryManager() {
                           >
                             <Trash2 size={15} />
                           </button>
-                          <div className={`
-                            w-10 h-10 rounded-full flex items-center justify-center font-display font-medium text-sm
-                            ${isLow
-                              ? 'bg-danger-50 text-danger-600 border-2 border-danger-200'
-                              : 'bg-success-50 text-success-600 border-2 border-success-200'
-                            }
-                            ${isLow ? 'animate-pulse' : ''}
-                          `}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-medium text-sm ${stockBadgeClass}`}>
                             {item.stock}
                           </div>
                         </div>
