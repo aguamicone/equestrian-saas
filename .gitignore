@@ -45,3 +45,6 @@ scripts/*serviceAccountKey*.json
 capturas-caballerizas/
 capturas/
 screenshots/
+
+# Notas internas entre sesiones (no son parte del producto)
+NOTAS_AGUSTIN.md
