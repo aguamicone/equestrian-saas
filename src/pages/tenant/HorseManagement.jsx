@@ -2,11 +2,13 @@ import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { Search, Plus, MoreVertical, LayoutList } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components/ui';
+import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
 
 export default function HorseManagement() {
     const { horses, finances, pricingPlans, spaces, tenantUsers } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterBy, setFilterBy] = useState('all'); // 'all' | 'active' | 'archived' | 'no-plan' | 'debt'
+    const [selectedHorse, setSelectedHorse] = useState(null);
 
     // O(1) Maps
     const usersById = useMemo(() => {
@@ -84,7 +86,7 @@ export default function HorseManagement() {
         e.stopPropagation();
         alert('Tanda D: acciones del caballo');
     };
-    const handleRowClick = (horse) => alert(`Tanda B: modal de detalle de ${horse.name}`);
+    const handleRowClick = (horse) => setSelectedHorse(horse);
 
     // Columns
     const columns = [
@@ -177,6 +179,7 @@ export default function HorseManagement() {
     ];
 
     return (
+        <>
         <div className="space-y-6">
             <PageHeader 
                 kicker="Gestión"
@@ -278,5 +281,14 @@ export default function HorseManagement() {
                 />
             )}
         </div>
+
+            {/* Modal de detalle del caballo */}
+            {selectedHorse && (
+                <HorseDetailModal
+                    horse={selectedHorse}
+                    onClose={() => setSelectedHorse(null)}
+                />
+            )}
+        </>
     );
 }

@@ -1,0 +1,533 @@
+// src/components/horses/modals/HorseDetailModal.jsx
+//
+// Modal de detalle del caballo con tabs:
+//   Tab 1: Info (datos básicos editables)
+//   Tab 2: Plan + Finanzas (plan actual + cuenta corriente del caballo)
+//
+// Tabs 3-5 (Ubicación, Eventos, Rutinas) vienen en Tanda C.
+//
+// Decisión arquitectónica: para "Marcar como pagado" usamos el patrón
+// double-entry: crear un PAYMENT doc nuevo + actualizar el cargo original.
+// Esto da trazabilidad desde el día 1 para el módulo de Finanzas (Sprint 5).
+
+import { useState, useMemo } from 'react';
+import {
+  X, Save, Pencil, CheckCircle2, Clock, AlertCircle,
+  TrendingUp, DollarSign, Package
+} from 'lucide-react';
+import { Modal, Badge, Tabs } from '../../ui';
+import { useData } from '../../../context/DataContext';
+import MarkAsPaidModal from './MarkAsPaidModal';
+
+/**
+ * Props:
+ *   horse: documento del caballo
+ *   onClose: () => void
+ */
+export default function HorseDetailModal({ horse, onClose }) {
+  const { tenantUsers, finances, pricingPlans, updateRow, spaces } = useData();
+  const [activeTab, setActiveTab] = useState('info');
+  const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
+
+  // ===== Resolver datos relacionados =====
+  const owner = useMemo(() => {
+    return (tenantUsers || []).find(u => (u.uid || u.id) === horse.ownerId);
+  }, [tenantUsers, horse.ownerId]);
+
+  const space = useMemo(() => {
+    return (spaces || []).find(s => s.horseId === horse.id);
+  }, [spaces, horse.id]);
+
+  const currentPlan = useMemo(() => {
+    if (!horse.planId) return null;
+    return (pricingPlans || []).find(p => p.id === horse.planId);
+  }, [pricingPlans, horse.planId]);
+
+  // ===== Cargos de este caballo =====
+  const horseCharges = useMemo(() => {
+    const charges = (finances || []).filter(f => f.horseId === horse.id);
+    // Ordenar: pending/overdue primero, después paid; dentro de cada grupo por fecha desc
+    return charges.sort((a, b) => {
+      const aPending = a.status === 'pending' || a.status === 'overdue';
+      const bPending = b.status === 'pending' || b.status === 'overdue';
+      if (aPending !== bPending) return aPending ? -1 : 1;
+      return (b.date || '').localeCompare(a.date || '');
+    });
+  }, [finances, horse.id]);
+
+  // ===== Resumen financiero =====
+  const financialSummary = useMemo(() => {
+    let totalCharged = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+    horseCharges.forEach(c => {
+      const amount = Number(c.amount || 0);
+      // Solo contamos los cargos (no los pagos, que también viven en FINANCES)
+      // Un cargo es type='charge' o sin type (legacy). Un pago es type='payment'.
+      if (c.type === 'payment') return;
+      totalCharged += amount;
+      if (c.status === 'paid') totalPaid += amount;
+      else if (c.status === 'pending' || c.status === 'overdue') totalPending += amount;
+    });
+    return { totalCharged, totalPaid, totalPending };
+  }, [horseCharges]);
+
+  // ===== Tabs definition =====
+  const pendingCount = horseCharges.filter(c =>
+    (c.status === 'pending' || c.status === 'overdue') && c.type !== 'payment'
+  ).length;
+
+  const tabs = [
+    { key: 'info', label: 'Info' },
+    {
+      key: 'finance',
+      label: 'Plan y finanzas',
+      count: pendingCount > 0 ? pendingCount : undefined
+    },
+  ];
+
+  return (
+    <>
+      <Modal isOpen={true} onClose={onClose} size="lg" hideDefaultHeader>
+        {/* ===== Header ===== */}
+        <div className="px-6 py-4 border-b border-ink-100 flex items-center justify-between bg-gradient-to-br from-sky-50 to-white">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-display text-xl font-medium flex-shrink-0">
+              {horse.name?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-display text-lg font-medium text-ink-900 truncate">
+                {horse.name}
+              </div>
+              <div className="text-xs text-ink-500 truncate">
+                {horse.breed || 'Raza no especificada'} · {owner?.displayName || 'Sin dueño'}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md hover:bg-white/80 text-ink-500 hover:text-ink-800 flex-shrink-0"
+            aria-label="Cerrar"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* ===== Tabs ===== */}
+        <div className="px-6 pt-3 border-b border-ink-100">
+          <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} />
+        </div>
+
+        {/* ===== Body ===== */}
+        <div className="max-h-[60vh] overflow-y-auto">
+          {activeTab === 'info' && (
+            <InfoTab horse={horse} owner={owner} space={space} updateRow={updateRow} />
+          )}
+          {activeTab === 'finance' && (
+            <FinanceTab
+              horse={horse}
+              charges={horseCharges}
+              currentPlan={currentPlan}
+              summary={financialSummary}
+              onMarkAsPaid={setChargeToMark}
+            />
+          )}
+        </div>
+      </Modal>
+
+      {/* ===== Sub-modal para marcar pago ===== */}
+      {chargeToMark && (
+        <MarkAsPaidModal
+          charge={chargeToMark}
+          horse={horse}
+          owner={owner}
+          onClose={() => setChargeToMark(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// Tab 1: Info
+// ============================================================
+function InfoTab({ horse, owner, space, updateRow }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({
+    name: horse.name || '',
+    breed: horse.breed || '',
+    age: horse.age || '',
+    color: horse.color || '',
+    discipline: horse.discipline || '',
+    notes: horse.notes || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCancel = () => {
+    // Restaurar valores originales
+    setForm({
+      name: horse.name || '',
+      breed: horse.breed || '',
+      age: horse.age || '',
+      color: horse.color || '',
+      discipline: horse.discipline || '',
+      notes: horse.notes || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      await updateRow('HORSES', horse.id, {
+        name: form.name.trim(),
+        breed: form.breed.trim() || null,
+        age: form.age === '' ? null : Number(form.age),
+        color: form.color.trim() || null,
+        discipline: form.discipline.trim() || null,
+        notes: form.notes.trim() || null,
+      });
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error guardando caballo:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="px-6 py-5">
+      {/* Toolbar editar */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+          Datos del caballo
+        </div>
+        {!isEditing ? (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50"
+          >
+            <Pencil size={13} />
+            Editar
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancel}
+              disabled={saving}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-ink-600 hover:bg-ink-100"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:bg-ink-200 disabled:text-ink-400"
+            >
+              <Save size={13} />
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Grilla de campos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+        <Field
+          label="Nombre"
+          value={form.name}
+          isEditing={isEditing}
+          onChange={v => handleChange('name', v)}
+          required
+        />
+        <Field
+          label="Raza"
+          value={form.breed}
+          isEditing={isEditing}
+          onChange={v => handleChange('breed', v)}
+        />
+        <Field
+          label="Edad"
+          value={form.age}
+          isEditing={isEditing}
+          onChange={v => handleChange('age', v)}
+          type="number"
+          suffix={form.age && !isEditing ? ' años' : ''}
+        />
+        <Field
+          label="Color / pelaje"
+          value={form.color}
+          isEditing={isEditing}
+          onChange={v => handleChange('color', v)}
+        />
+        <Field
+          label="Disciplina"
+          value={form.discipline}
+          isEditing={isEditing}
+          onChange={v => handleChange('discipline', v)}
+        />
+        <div /> {/* spacer */}
+        <div className="sm:col-span-2">
+          <Field
+            label="Notas"
+            value={form.notes}
+            isEditing={isEditing}
+            onChange={v => handleChange('notes', v)}
+            multiline
+          />
+        </div>
+      </div>
+
+      {/* Info secundaria (no editable acá) */}
+      <div className="mt-6 pt-5 border-t border-ink-100 space-y-3">
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+          Información adicional
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div>
+            <div className="text-xs text-ink-500 mb-0.5">Dueño</div>
+            <div className="text-ink-800">{owner?.displayName || 'Sin dueño'}</div>
+          </div>
+          <div>
+            <div className="text-xs text-ink-500 mb-0.5">Ubicación</div>
+            <div className="text-ink-800">{space?.name || 'Sin asignar'}</div>
+          </div>
+        </div>
+        <div className="text-[11px] text-ink-500 italic leading-snug pt-1">
+          El dueño y la ubicación se cambian desde otras pantallas (Caballerizas, Acciones del caballo).
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab 2: Plan + Finanzas
+// ============================================================
+function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
+  const formatCurrency = (n) =>
+    new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 0,
+    }).format(n || 0);
+
+  // Filtrar visualmente: ocultamos PAYMENTS (type=payment) de la lista, son ruido
+  const visibleCharges = charges.filter(c => c.type !== 'payment');
+
+  return (
+    <div className="px-6 py-5 space-y-6">
+
+      {/* ===== Sección Plan ===== */}
+      <section>
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-2">
+          Plan actual
+        </div>
+        {currentPlan ? (
+          <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-base font-medium text-primary-900">
+                  {currentPlan.name}
+                </div>
+                <div className="text-sm text-primary-700 mt-0.5">
+                  {formatCurrency(currentPlan.monthlyPrice)} / mes
+                </div>
+                {Array.isArray(currentPlan.includes) && currentPlan.includes.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {currentPlan.includes.map(srv => (
+                      <Badge key={srv} variant="primary" size="sm">{srv}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => alert('Tanda D: cambiar plan del caballo')}
+                className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0"
+              >
+                Cambiar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-ink-50 border border-dashed border-ink-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-ink-700">Sin plan asignado</div>
+              <div className="text-xs text-ink-500 mt-0.5">
+                Sin plan no se generan cargos mensuales automáticos
+              </div>
+            </div>
+            <button
+              onClick={() => alert('Tanda D: asignar plan al caballo')}
+              className="btn-secondary text-xs"
+            >
+              Asignar plan
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ===== Resumen financiero ===== */}
+      <section>
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-2">
+          Resumen
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <SummaryTile
+            label="Total facturado"
+            value={formatCurrency(summary.totalCharged)}
+            icon={TrendingUp}
+            color="ink"
+          />
+          <SummaryTile
+            label="Pagado"
+            value={formatCurrency(summary.totalPaid)}
+            icon={CheckCircle2}
+            color="success"
+          />
+          <SummaryTile
+            label="Pendiente"
+            value={formatCurrency(summary.totalPending)}
+            icon={AlertCircle}
+            color={summary.totalPending > 0 ? 'danger' : 'ink'}
+          />
+        </div>
+      </section>
+
+      {/* ===== Cuenta corriente ===== */}
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+            Cuenta corriente
+          </div>
+          <button
+            onClick={() => alert('Tanda D: registrar cargo one-shot')}
+            className="text-xs font-medium text-primary-700 hover:text-primary-900"
+          >
+            + Cargo
+          </button>
+        </div>
+
+        {visibleCharges.length === 0 ? (
+          <div className="text-center py-8 text-sm text-ink-500 italic bg-ink-50 rounded-xl">
+            Este caballo no tiene movimientos registrados.
+          </div>
+        ) : (
+          <div className="border border-ink-100 rounded-xl divide-y divide-ink-100 overflow-hidden">
+            {visibleCharges.map(charge => (
+              <ChargeRow
+                key={charge.id}
+                charge={charge}
+                onMarkAsPaid={() => onMarkAsPaid(charge)}
+                formatCurrency={formatCurrency}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+    </div>
+  );
+}
+
+// ============================================================
+// Sub-componente: fila de cargo
+// ============================================================
+function ChargeRow({ charge, onMarkAsPaid, formatCurrency }) {
+  const isPending = charge.status === 'pending' || charge.status === 'overdue';
+
+  const statusBadge = {
+    paid: { variant: 'success', label: 'Pagado' },
+    pending: { variant: 'gold', label: 'Pendiente' },
+    overdue: { variant: 'danger', label: 'Vencido' },
+  }[charge.status] || { variant: 'neutral', label: charge.status };
+
+  return (
+    <div className="px-4 py-3 flex items-center gap-3 hover:bg-ink-50/50 transition-colors">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-ink-900 font-medium truncate">
+          {charge.description || charge.category || 'Cargo sin descripción'}
+        </div>
+        <div className="text-[11px] text-ink-500 mt-0.5">
+          {charge.date || charge.createdAt || 'Sin fecha'}
+        </div>
+      </div>
+      <div className="text-sm text-ink-900 font-medium tabular-nums flex-shrink-0">
+        {formatCurrency(charge.amount)}
+      </div>
+      <Badge variant={statusBadge.variant} size="sm">
+        {statusBadge.label}
+      </Badge>
+      {isPending && (
+        <button
+          onClick={onMarkAsPaid}
+          className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0 ml-2"
+        >
+          Marcar pagado
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Sub-componente: campo editable
+// ============================================================
+function Field({ label, value, isEditing, onChange, type = 'text', multiline = false, required = false, suffix = '' }) {
+  return (
+    <div>
+      <div className="text-xs text-ink-500 mb-1">
+        {label} {required && <span className="text-danger-500">*</span>}
+      </div>
+      {isEditing ? (
+        multiline ? (
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="input-field resize-none text-sm"
+            rows="2"
+          />
+        ) : (
+          <input
+            type={type}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="input-field text-sm"
+          />
+        )
+      ) : (
+        <div className="text-sm text-ink-800">
+          {value ? `${value}${suffix}` : <span className="text-ink-400 italic">Sin datos</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Sub-componente: KPI compacto del resumen
+// ============================================================
+function SummaryTile({ label, value, icon: Icon, color = 'ink' }) {
+  const colors = {
+    ink: 'bg-ink-50 text-ink-700',
+    success: 'bg-success-50 text-success-700',
+    danger: 'bg-danger-50 text-danger-700',
+  }[color] || 'bg-ink-50 text-ink-700';
+
+  return (
+    <div className={`${colors} rounded-xl p-3`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider opacity-80">
+        <Icon size={12} strokeWidth={2} />
+        {label}
+      </div>
+      <div className="text-base font-display font-medium mt-1 tabular-nums">
+        {value}
+      </div>
+    </div>
+  );
+}
