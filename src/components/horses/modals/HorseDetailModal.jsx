@@ -11,9 +11,12 @@
 // Esto da trazabilidad desde el día 1 para el módulo de Finanzas (Sprint 5).
 
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X, Save, Pencil, CheckCircle2, Clock, AlertCircle,
-  TrendingUp, DollarSign, Package
+  TrendingUp, DollarSign, Package,
+  MapPin, ArrowLeftRight, History, Home,
+  Activity, Syringe, Stethoscope, Pill, CalendarCheck
 } from 'lucide-react';
 import { Modal, Badge, Tabs } from '../../ui';
 import { useData } from '../../../context/DataContext';
@@ -25,7 +28,7 @@ import MarkAsPaidModal from './MarkAsPaidModal';
  *   onClose: () => void
  */
 export default function HorseDetailModal({ horse, onClose }) {
-  const { tenantUsers, finances, pricingPlans, updateRow, spaces } = useData();
+  const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs } = useData();
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
 
@@ -84,6 +87,8 @@ export default function HorseDetailModal({ horse, onClose }) {
       label: 'Plan y finanzas',
       count: pendingCount > 0 ? pendingCount : undefined
     },
+    { key: 'location', label: 'Ubicación' },
+    { key: 'sanidad', label: 'Sanidad' },
   ];
 
   return (
@@ -131,6 +136,12 @@ export default function HorseDetailModal({ horse, onClose }) {
               summary={financialSummary}
               onMarkAsPaid={setChargeToMark}
             />
+          )}
+          {activeTab === 'location' && (
+            <LocationTab horse={horse} space={space} logs={logs} />
+          )}
+          {activeTab === 'sanidad' && (
+            <SanidadTab />
           )}
         </div>
       </Modal>
@@ -528,6 +539,166 @@ function SummaryTile({ label, value, icon: Icon, color = 'ink' }) {
       <div className="text-base font-display font-medium mt-1 tabular-nums">
         {value}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab 3: Ubicación
+// ============================================================
+function LocationTab({ horse, space, logs }) {
+  const navigate = useNavigate();
+
+  const horseLogs = useMemo(() => {
+    return (logs || [])
+      .filter(l => l.horseId === horse.id && l.type === 'horse_moved')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [logs, horse.id]);
+
+  const displayLogs = horseLogs.slice(0, 5);
+
+  const getSpaceIcon = (type) => {
+    if (type === 'box') return <Package className="w-6 h-6" />;
+    if (type === 'piquete' || type === 'corral') return <MapPin className="w-6 h-6" />;
+    return <Home className="w-6 h-6" />;
+  };
+
+  return (
+    <div className="px-6 py-5 space-y-6">
+      {/* Current Space Card */}
+      <div className="bg-white rounded-xl border border-ink-200 overflow-hidden shadow-sm">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-ink-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-ink-50 text-ink-600 flex items-center justify-center">
+              {space ? getSpaceIcon(space.type) : <MapPin className="w-6 h-6" />}
+            </div>
+            <div>
+              <div className="font-display font-medium text-ink-900 text-lg">
+                {space ? space.name : 'Sin ubicación asignada'}
+              </div>
+              <div className="text-sm text-ink-500">
+                {space?.sectorId ? `Sector: ${space.sectorId}` : 'Sector no especificado'}
+              </div>
+            </div>
+          </div>
+          {space && (
+            <Badge variant={space.status === 'occupied' ? 'info' : 'warning'}>
+              1 de {space.capacity || 1} ocupado
+            </Badge>
+          )}
+        </div>
+        <div className="px-5 py-3 bg-ink-50 flex justify-end">
+          <button
+            onClick={() => navigate('/tenant-admin/spaces')}
+            className="text-sm font-medium text-primary-600 hover:text-primary-700"
+          >
+            Ver en grid de espacios →
+          </button>
+        </div>
+      </div>
+
+      {/* Movement History */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-medium text-ink-900">Últimos movimientos</h4>
+          {horseLogs.length > 0 && (
+            <span className="text-xs text-ink-500">
+              {displayLogs.length} de {horseLogs.length}
+            </span>
+          )}
+        </div>
+
+        {horseLogs.length === 0 ? (
+          <div className="text-center py-8 px-4 rounded-xl border border-dashed border-ink-200 bg-ink-50/50">
+            <History className="w-8 h-8 text-ink-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-ink-900">Sin movimientos registrados aún</p>
+            <p className="text-xs text-ink-500 mt-1 max-w-xs mx-auto">
+              El historial de cambios de box y piquete aparecerá aquí.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {displayLogs.map(log => (
+              <MovementLogRow key={log.id} log={log} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MovementLogRow({ log }) {
+  const getTimeAgo = (isoString) => {
+    if (!isoString) return 'Fecha desconocida';
+    const diff = Date.now() - new Date(isoString).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Hace 1 día';
+    return `Hace ${days} días`;
+  };
+
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-xl border border-ink-100 bg-white hover:border-ink-200 transition-colors">
+      <div className="w-10 h-10 rounded-full bg-ink-50 flex items-center justify-center text-ink-500 flex-shrink-0">
+        <ArrowLeftRight className="w-5 h-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-ink-900 truncate">
+          {log.details || 'Movimiento registrado'}
+        </div>
+        <div className="text-xs text-ink-500 mt-0.5 truncate">
+          {log.staffName ? `por ${log.staffName}` : 'Automático'}
+        </div>
+      </div>
+      <div 
+        className="text-xs font-medium text-ink-500 flex-shrink-0 whitespace-nowrap cursor-help"
+        title={log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}
+      >
+        {getTimeAgo(log.timestamp)}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab 4: Sanidad (Empty State)
+// ============================================================
+function SanidadTab() {
+  return (
+    <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
+      <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
+        <Activity className="w-10 h-10 text-rose-400" />
+      </div>
+      <h3 className="font-display text-xl font-medium text-ink-900 mb-2">
+        Sin registros de sanidad
+      </h3>
+      <p className="text-sm text-ink-600 max-w-sm mb-6">
+        Próximamente vas a poder registrar acá:
+      </p>
+      
+      <div className="space-y-3 text-left mb-8">
+        <div className="flex items-center gap-3 text-sm text-ink-700">
+          <Syringe className="w-4 h-4 text-emerald-500" />
+          <span>Vacunaciones</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-ink-700">
+          <Stethoscope className="w-4 h-4 text-sky-500" />
+          <span>Visitas del veterinario</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-ink-700">
+          <Pill className="w-4 h-4 text-rose-500" />
+          <span>Tratamientos médicos</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-ink-700">
+          <CalendarCheck className="w-4 h-4 text-amber-500" />
+          <span>Controles de rutina</span>
+        </div>
+      </div>
+
+      <p className="text-xs text-ink-400 font-medium">
+        Esta funcionalidad llegará en la próxima tanda.
+      </p>
     </div>
   );
 }
