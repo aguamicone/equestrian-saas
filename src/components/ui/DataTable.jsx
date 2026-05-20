@@ -22,6 +22,7 @@ export default function DataTable({
   columns,
   data = [],
   onRowClick = null,
+  getRowClassName = null,
   emptyMessage = 'No hay datos para mostrar',
   emptyIcon = null,
   getRowKey = (row) => row.id,
@@ -63,7 +64,7 @@ export default function DataTable({
               <tr
                 key={getRowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-sky-50/50' : ''}`}
+                className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-sky-50/50' : ''} ${getRowClassName ? getRowClassName(row) : ''}`}
               >
                 {columns.map(col => (
                   <td
