@@ -365,6 +365,41 @@ service cloud.firestore {
     }
 
 
+    // ----- HEALTH_RECORDS & HORSE_HEALTH_BOOKLETS -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update/Delete: tenantAdmin o staff (los clientes solo leen)
+    match /HEALTH_RECORDS/{recordId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+    }
+
+    match /HORSE_HEALTH_BOOKLETS/{bookletId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+    }
+
     // ============================================================
     // CATCH-ALL FINAL
     // Solo superAdmin puede acceder a colecciones no listadas arriba.

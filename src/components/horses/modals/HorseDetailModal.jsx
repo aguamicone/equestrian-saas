@@ -21,6 +21,8 @@ import {
 import { Modal, Badge, Tabs } from '../../ui';
 import { useData } from '../../../context/DataContext';
 import MarkAsPaidModal from './MarkAsPaidModal';
+import HealthRecordModal from '../../health/modals/HealthRecordModal';
+import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal';
 
 /**
  * Props:
@@ -31,6 +33,9 @@ export default function HorseDetailModal({ horse, onClose }) {
   const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs } = useData();
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
+  
+  const [showHealthHistory, setShowHealthHistory] = useState(false);
+  const [showCreateHealthRecord, setShowCreateHealthRecord] = useState(false);
 
   // ===== Resolver datos relacionados =====
   const owner = useMemo(() => {
@@ -141,7 +146,11 @@ export default function HorseDetailModal({ horse, onClose }) {
             <LocationTab horse={horse} space={space} logs={logs} />
           )}
           {activeTab === 'sanidad' && (
-            <SanidadTab />
+            <SanidadTab 
+              horse={horse} 
+              onViewFull={() => setShowHealthHistory(true)} 
+              onAddRecord={() => setShowCreateHealthRecord(true)} 
+            />
           )}
         </div>
       </Modal>
@@ -151,9 +160,20 @@ export default function HorseDetailModal({ horse, onClose }) {
         <MarkAsPaidModal
           charge={chargeToMark}
           horse={horse}
-          owner={owner}
           onClose={() => setChargeToMark(null)}
+          onSuccess={() => {
+            // Se refresca solo vía snapshot en DataContext
+            setChargeToMark(null);
+          }}
         />
+      )}
+
+      {/* ===== Sub-modales de Sanidad ===== */}
+      {showHealthHistory && (
+        <HealthRecordModal horse={horse} onClose={() => setShowHealthHistory(false)} />
+      )}
+      {showCreateHealthRecord && (
+        <CreateHealthRecordModal horse={horse} onClose={() => setShowCreateHealthRecord(false)} />
       )}
     </>
   );
@@ -662,43 +682,103 @@ function MovementLogRow({ log }) {
 }
 
 // ============================================================
-// Tab 4: Sanidad (Empty State)
+// Tab 4: Sanidad
 // ============================================================
-function SanidadTab() {
-  return (
-    <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
-      <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
-        <Activity className="w-10 h-10 text-rose-400" />
+function SanidadTab({ horse, onViewFull, onAddRecord }) {
+  const { getHealthRecordsByHorse, getHealthStatusByHorse } = useData();
+  const records = getHealthRecordsByHorse(horse.id);
+  const status = getHealthStatusByHorse(horse.id);
+
+  const getTypeIcon = (type) => {
+    switch(type) {
+      case 'vacuna': return <Syringe className="w-5 h-5 text-emerald-500" />;
+      case 'desparasitacion': return <Pill className="w-5 h-5 text-rose-500" />;
+      case 'control_veterinario': return <Stethoscope className="w-5 h-5 text-sky-500" />;
+      default: return <Activity className="w-5 h-5 text-ink-500" />;
+    }
+  };
+
+  const getStatusBadge = (s) => {
+    if (s === 'vencido') return <Badge variant="danger">Vencido</Badge>;
+    if (s === 'proximo') return <Badge variant="warning">Próximo</Badge>;
+    if (s === 'al_dia') return <Badge variant="success">Al día</Badge>;
+    return <Badge variant="neutral">Sin registros</Badge>;
+  };
+
+  if (records.length === 0) {
+    return (
+      <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
+        <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
+          <Activity className="w-10 h-10 text-rose-400" />
+        </div>
+        <h3 className="font-display text-xl font-medium text-ink-900 mb-2">
+          Sin registros sanitarios
+        </h3>
+        <p className="text-sm text-ink-600 max-w-sm mb-6">
+          Este caballo no tiene historial médico o de vacunación.
+        </p>
+        <button
+          onClick={onAddRecord}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
+        >
+          Agregar primer registro
+        </button>
       </div>
-      <h3 className="font-display text-xl font-medium text-ink-900 mb-2">
-        Sin registros de sanidad
-      </h3>
-      <p className="text-sm text-ink-600 max-w-sm mb-6">
-        Próximamente vas a poder registrar acá:
-      </p>
-      
-      <div className="space-y-3 text-left mb-8">
-        <div className="flex items-center gap-3 text-sm text-ink-700">
-          <Syringe className="w-4 h-4 text-emerald-500" />
-          <span>Vacunaciones</span>
+    );
+  }
+
+  const recentRecords = records.slice(0, 5);
+
+  return (
+    <div className="px-6 py-5 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="font-medium text-ink-900">Resumen sanitario</h3>
+          {getStatusBadge(status)}
         </div>
-        <div className="flex items-center gap-3 text-sm text-ink-700">
-          <Stethoscope className="w-4 h-4 text-sky-500" />
-          <span>Visitas del veterinario</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-ink-700">
-          <Pill className="w-4 h-4 text-rose-500" />
-          <span>Tratamientos médicos</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-ink-700">
-          <CalendarCheck className="w-4 h-4 text-amber-500" />
-          <span>Controles de rutina</span>
-        </div>
+        <button
+          onClick={onViewFull}
+          className="text-sm font-medium text-primary-600 hover:text-primary-700"
+        >
+          Ver historia completa →
+        </button>
       </div>
 
-      <p className="text-xs text-ink-400 font-medium">
-        Esta funcionalidad llegará en la próxima tanda.
-      </p>
+      <div className="space-y-3">
+        {recentRecords.map(record => (
+          <div key={record.id} className="flex items-center gap-4 p-4 rounded-xl border border-ink-100 bg-white hover:border-ink-200 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-ink-50 flex items-center justify-center flex-shrink-0">
+              {getTypeIcon(record.type)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm font-medium text-ink-900 truncate capitalize">
+                  {record.subtype || record.type.replace('_', ' ')}
+                </div>
+                <div className="text-xs text-ink-500 flex-shrink-0">
+                  {new Date(record.date).toLocaleDateString()}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-ink-500 truncate">
+                  {record.veterinarianName ? `Por ${record.veterinarianName}` : 'Registro manual'}
+                </div>
+                {record.nextDueDate && (
+                  <div className="text-xs font-medium text-ink-600">
+                    Vence: {new Date(record.nextDueDate).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {records.length > 5 && (
+        <div className="text-center pt-2">
+          <span className="text-xs text-ink-500">+ {records.length - 5} registros más en la historia completa</span>
+        </div>
+      )}
     </div>
   );
 }

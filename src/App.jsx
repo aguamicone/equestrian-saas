@@ -16,7 +16,7 @@ import HorseManagement from './pages/tenant/HorseManagement';
 import RoutineManagement from './pages/tenant/RoutineManagement';
 import FinanceOverview from './pages/tenant/FinanceOverview';
 import DebtorsDashboard from './pages/tenant/DebtorsDashboard';
-import SanityDashboard from './pages/tenant/SanityDashboard';
+import HealthManagement from './pages/tenant/HealthManagement';
 import TenantSettings from './pages/tenant/Settings';
 import StaffManagement from './pages/tenant/StaffManagement';
 import ActivityLog from './pages/tenant/ActivityLog';
@@ -78,7 +78,7 @@ function App() {
                                 <Route path="horses" element={<HorseManagement />} />
                                 <Route path="finance" element={<FinanceOverview />} />
                                 <Route path="finance/debtors" element={<DebtorsDashboard />} />
-                                <Route path="sanity" element={<SanityDashboard />} />
+                                <Route path="health" element={<HealthManagement />} />
                                 <Route path="activity" element={<ActivityLog />} />
                                 <Route path="staff" element={<StaffManagement />} />
                                 <Route path="requests-center" element={<RequestsCenter />} />

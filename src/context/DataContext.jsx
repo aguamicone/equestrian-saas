@@ -29,6 +29,8 @@ export function DataProvider({ children }) {
     const [servicesCatalog, setServicesCatalog] = useState([]);
     const [payrollAdvances, setPayrollAdvances] = useState([]);
     const [events, setEvents] = useState([]);
+    const [healthRecords, setHealthRecords] = useState([]);
+    const [healthBooklets, setHealthBooklets] = useState([]);
     const [tenantSettings, setTenantSettings] = useState(null);
 
     // Initial Load & Real-time Subscription via onSnapshot
@@ -37,7 +39,7 @@ export function DataProvider({ children }) {
             setSpaces([]); setHorses([]); setFinances([]); setLogs([]); setRequests([]);
             setRoutines([]); setPricingPlans([]); setShifts([]); setTenantUsers([]);
             setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
-            setEvents([]);
+            setEvents([]); setHealthRecords([]); setHealthBooklets([]);
             setTenantSettings(null);
             setNotifications([]);
             return;
@@ -72,6 +74,8 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('SERVICES_CATALOG', setServicesCatalog));
         unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances));
         unsubs.push(subscribe('EVENTS', setEvents));
+        unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
+        unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
         unsubs.push(subscribe('USERS', setTenantUsers));
 
         if (currentUser) {
@@ -560,10 +564,89 @@ export function DataProvider({ children }) {
         }
     };
 
+    // --- Health Management ---
+    const createHealthRecord = async (data) => {
+        try {
+            await addDoc(collection(db, 'HEALTH_RECORDS'), {
+                tenantId: currentTenant.id,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.uid || 'unknown',
+                ...data
+            });
+            notify('Registro sanitario creado', 'success');
+        } catch(e) { console.error(e); notify("Error al crear registro", "error"); }
+    };
+
+    const updateHealthRecord = async (id, data) => {
+        try {
+            await updateDoc(doc(db, 'HEALTH_RECORDS', id), data);
+            notify('Registro sanitario actualizado', 'success');
+        } catch(e) { console.error(e); notify("Error al actualizar", "error"); }
+    };
+
+    const deleteHealthRecord = async (id) => {
+        try {
+            await deleteDoc(doc(db, 'HEALTH_RECORDS', id));
+            notify('Registro sanitario eliminado', 'success');
+        } catch(e) { console.error(e); notify("Error al eliminar", "error"); }
+    };
+
+    const upsertHealthBooklet = async (horseId, data) => {
+        try {
+            const existing = healthBooklets.find(b => b.horseId === horseId);
+            if (existing) {
+                await updateDoc(doc(db, 'HORSE_HEALTH_BOOKLETS', existing.id), {
+                    ...data,
+                    updatedAt: new Date().toISOString()
+                });
+                notify('Libreta actualizada', 'success');
+            } else {
+                await addDoc(collection(db, 'HORSE_HEALTH_BOOKLETS'), {
+                    tenantId: currentTenant.id,
+                    horseId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    ...data
+                });
+                notify('Libreta creada', 'success');
+            }
+        } catch(e) { console.error(e); notify("Error al guardar libreta", "error"); }
+    };
+
+    const getHealthRecordsByHorse = (horseId) => {
+        return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    };
+
+    const getHealthBookletByHorse = (horseId) => {
+        return healthBooklets.find(b => b.horseId === horseId) || null;
+    };
+
+    const getHealthStatusByHorse = (horseId) => {
+        const records = getHealthRecordsByHorse(horseId);
+        if (records.length === 0) return 'sin_registros';
+        
+        let status = 'al_dia';
+        const now = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(now.getDate() + 30);
+
+        for (const record of records) {
+            if (!record.nextDueDate) continue;
+            const dueDate = new Date(record.nextDueDate);
+            if (dueDate < now) {
+                return 'vencido'; // El más severo gana
+            }
+            if (dueDate <= thirtyDaysFromNow) {
+                status = 'proximo';
+            }
+        }
+        return status;
+    };
+
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
-        notifications, events,
+        notifications, events, healthRecords, healthBooklets,
         
         addHorse, assignHorseToSpace, updateSpaceStatus, updateBanner, addLog, addRequest,
         addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,
@@ -571,7 +654,10 @@ export function DataProvider({ children }) {
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
         getLogsForHorse, getFinanceForUser,
         
-        releaseSpace, archiveHorse, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace
+        releaseSpace, archiveHorse, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
+        
+        createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
+        getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
     };
 
     return (
