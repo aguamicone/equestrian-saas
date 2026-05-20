@@ -4,6 +4,7 @@ import { Search, Plus, MoreVertical, LayoutList } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components/ui';
 import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
 import HorseActionsMenu from '../../components/horses/modals/HorseActionsMenu';
+import GestionarPlanesModal from '../../components/horses/modals/GestionarPlanesModal';
 
 export default function HorseManagement() {
     const { horses, finances, pricingPlans, spaces, tenantUsers, archiveHorse, updateHorseStatus } = useData();
@@ -14,6 +15,10 @@ export default function HorseManagement() {
     // States for contextual menu positioning and target horse
     const [anchorRect, setAnchorRect] = useState(null);
     const [menuHorse, setMenuHorse] = useState(null);
+    
+    // Tanda D2: integración del GestionarPlanesModal
+    // Resto de mejoras a HorseManagement (bug planId, filtros) en Fase 3
+    const [gestionarPlanesHorse, setGestionarPlanesHorse] = useState(null);
 
     // O(1) Maps
     const usersById = useMemo(() => {
@@ -356,6 +361,18 @@ export default function HorseManagement() {
                     onSelectUnarchive={handleSelectUnarchive}
                     onSelectMaintenance={handleSelectMaintenance}
                     onSelectActive={handleSelectActive}
+                    onOpenGestionarPlanes={(horse) => {
+                        handleCloseMenu();
+                        setGestionarPlanesHorse(horse);
+                    }}
+                />
+            )}
+
+            {gestionarPlanesHorse && (
+                <GestionarPlanesModal
+                    isOpen={!!gestionarPlanesHorse}
+                    onClose={() => setGestionarPlanesHorse(null)}
+                    horse={gestionarPlanesHorse}
                 />
             )}
         </>
