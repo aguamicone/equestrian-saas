@@ -3,12 +3,17 @@ import { useData } from '../../context/DataContext';
 import { Search, Plus, MoreVertical, LayoutList } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components/ui';
 import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
+import HorseActionsMenu from '../../components/horses/modals/HorseActionsMenu';
 
 export default function HorseManagement() {
-    const { horses, finances, pricingPlans, spaces, tenantUsers } = useData();
+    const { horses, finances, pricingPlans, spaces, tenantUsers, archiveHorse, updateHorseStatus } = useData();
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterBy, setFilterBy] = useState('all'); // 'all' | 'active' | 'archived' | 'no-plan' | 'debt'
+    const [filterBy, setFilterBy] = useState('active'); // 'active' | 'all' | 'archived' | 'no-plan' | 'debt'
     const [selectedHorse, setSelectedHorse] = useState(null);
+
+    // States for contextual menu positioning and target horse
+    const [anchorRect, setAnchorRect] = useState(null);
+    const [menuHorse, setMenuHorse] = useState(null);
 
     // O(1) Maps
     const usersById = useMemo(() => {
@@ -47,10 +52,12 @@ export default function HorseManagement() {
 
         horses.forEach(horse => {
             total++;
-            const isActive = horse.active !== false;
-            if (isActive) active++; else archived++;
-            if (!horse.planId || horse.planId === '') noPlan++;
-            if (horseDebtMap[horse.id]) withDebt++;
+            const isArchived = horse.archived === true;
+            if (isArchived) archived++; else active++;
+            if (!isArchived) {
+                if (!horse.planId || horse.planId === '') noPlan++;
+                if (horseDebtMap[horse.id]) withDebt++;
+            }
         });
 
         return { total, active, archived, noPlan, withDebt };
@@ -61,10 +68,10 @@ export default function HorseManagement() {
         let result = horses;
 
         // 1. Chip filter
-        if (filterBy === 'active') result = result.filter(h => h.active !== false);
-        else if (filterBy === 'archived') result = result.filter(h => h.active === false);
-        else if (filterBy === 'no-plan') result = result.filter(h => !h.planId || h.planId === '');
-        else if (filterBy === 'debt') result = result.filter(h => horseDebtMap[h.id]);
+        if (filterBy === 'active') result = result.filter(h => h.archived !== true);
+        else if (filterBy === 'archived') result = result.filter(h => h.archived === true);
+        else if (filterBy === 'no-plan') result = result.filter(h => h.archived !== true && (!h.planId || h.planId === ''));
+        else if (filterBy === 'debt') result = result.filter(h => h.archived !== true && horseDebtMap[h.id]);
 
         // 2. Search
         if (searchTerm.trim()) {
@@ -80,12 +87,52 @@ export default function HorseManagement() {
         return result;
     }, [horses, filterBy, searchTerm, usersById, horseDebtMap]);
 
-    // Placeholder alerts
+    // Action handlers
     const handleAddHorse = () => alert('Tanda E: alta de caballo nuevo');
+    
     const handleMenuClick = (e, horse) => {
         e.stopPropagation();
-        alert('Tanda D: acciones del caballo');
+        if (e.currentTarget) {
+            setAnchorRect(e.currentTarget.getBoundingClientRect());
+            setMenuHorse(horse);
+        }
     };
+
+    const handleCloseMenu = () => {
+        setAnchorRect(null);
+        setMenuHorse(null);
+    };
+
+    const handleSelectArchive = async () => {
+        const horse = menuHorse;
+        handleCloseMenu();
+        if (!horse) return;
+        if (window.confirm(`¿Seguro querés archivar a ${horse.name}?`)) {
+            await archiveHorse(horse.id, true);
+        }
+    };
+
+    const handleSelectUnarchive = async () => {
+        const horse = menuHorse;
+        handleCloseMenu();
+        if (!horse) return;
+        await archiveHorse(horse.id, false);
+    };
+
+    const handleSelectMaintenance = async () => {
+        const horse = menuHorse;
+        handleCloseMenu();
+        if (!horse) return;
+        await updateHorseStatus(horse.id, 'mantenimiento');
+    };
+
+    const handleSelectActive = async () => {
+        const horse = menuHorse;
+        handleCloseMenu();
+        if (!horse) return;
+        await updateHorseStatus(horse.id, 'activo');
+    };
+
     const handleRowClick = (horse) => setSelectedHorse(horse);
 
     // Columns
@@ -95,7 +142,12 @@ export default function HorseManagement() {
             header: 'Caballo',
             render: (horse) => (
                 <div>
-                    <div className="font-medium text-ink-800">{horse.name}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-ink-800">{horse.name}</span>
+                        {horse.status === 'mantenimiento' && (
+                            <Badge variant="warning" size="xs">Mantenimiento</Badge>
+                        )}
+                    </div>
                     {horse.breed && <div className="text-xs text-ink-500 mt-0.5">{horse.breed}</div>}
                 </div>
             )
@@ -154,10 +206,13 @@ export default function HorseManagement() {
             key: 'status',
             header: 'Estado',
             render: (horse) => {
-                const isActive = horse.active !== false;
-                return isActive
-                    ? <Badge variant="success" size="sm">Activo</Badge>
-                    : <Badge variant="neutral" size="sm">Archivado</Badge>;
+                if (horse.archived === true) {
+                    return <Badge variant="neutral" size="sm">Archivado</Badge>;
+                }
+                if (horse.status === 'mantenimiento') {
+                    return <Badge variant="warning" size="sm">Mantenimiento</Badge>;
+                }
+                return <Badge variant="success" size="sm">Activo</Badge>;
             }
         },
         {
@@ -266,6 +321,7 @@ export default function HorseManagement() {
                         data={filteredHorses}
                         columns={columns}
                         onRowClick={handleRowClick}
+                        getRowClassName={(row) => row.archived ? 'opacity-60 bg-surface-50' : ''}
                         className="w-full"
                     />
                 </div>
@@ -287,6 +343,19 @@ export default function HorseManagement() {
                 <HorseDetailModal
                     horse={selectedHorse}
                     onClose={() => setSelectedHorse(null)}
+                />
+            )}
+
+            {/* Menú de acciones contextuales */}
+            {anchorRect && menuHorse && (
+                <HorseActionsMenu
+                    horse={menuHorse}
+                    anchorRect={anchorRect}
+                    onClose={handleCloseMenu}
+                    onSelectArchive={handleSelectArchive}
+                    onSelectUnarchive={handleSelectUnarchive}
+                    onSelectMaintenance={handleSelectMaintenance}
+                    onSelectActive={handleSelectActive}
                 />
             )}
         </>

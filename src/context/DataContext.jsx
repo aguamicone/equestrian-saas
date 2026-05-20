@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 
@@ -101,7 +101,12 @@ export function DataProvider({ children }) {
 
     const addHorse = async (horseData) => {
         try {
-            await addDoc(collection(db, 'HORSES'), { tenantId: currentTenant.id, ...horseData });
+            await addDoc(collection(db, 'HORSES'), {
+                tenantId: currentTenant.id,
+                archived: false,
+                status: 'activo',
+                ...horseData
+            });
             notify('Caballo registrado exitosamente', 'success');
         } catch(e) { console.error(e); notify("Error", "error"); }
     };
@@ -346,41 +351,102 @@ export function DataProvider({ children }) {
         }
     };
 
-    const archiveHorse = async (horseId, reason = '') => {
+    const archiveHorse = async (horseId, archived, reason = '') => {
         try {
-            // 1. Buscar si el caballo está en algún espacio
-            const horseSpace = spaces.find(s => s.horseId === horseId);
+            const batch = writeBatch(db);
+            const horseRef = doc(db, 'HORSES', horseId);
+            const logRef = doc(collection(db, 'LOGS'));
 
-            // 2. Marcar caballo como archivado
-            await updateDoc(doc(db, 'HORSES', horseId), {
-                active: false,
-                archivedAt: new Date().toISOString(),
-                archivedReason: reason,
-            });
+            if (archived) {
+                // 1. Buscar si el caballo está en algún espacio
+                const horseSpace = spaces.find(s => s.horseId === horseId);
 
-            // 3. Si tenía espacio asignado, liberarlo
-            if (horseSpace) {
-                await updateDoc(doc(db, 'SPACES', horseSpace.id), {
-                    status: 'available',
-                    horseId: null,
+                // 2. Marcar caballo como archivado en el batch
+                batch.update(horseRef, {
+                    archived: true,
+                    archivedAt: new Date().toISOString(),
+                    archivedReason: reason || null,
+                });
+
+                // 3. Si tenía espacio asignado, liberarlo en el batch
+                if (horseSpace) {
+                    batch.update(doc(db, 'SPACES', horseSpace.id), {
+                        status: 'available',
+                        horseId: null,
+                    });
+                }
+
+                // 4. Log de auditoría en el batch
+                batch.set(logRef, {
+                    tenantId: currentTenant.id,
+                    timestamp: new Date().toISOString(),
+                    staffName: currentUser?.displayName || 'Sistema',
+                    type: 'horse_archived',
+                    horseId,
+                    details: `Caballo archivado${reason ? ': ' + reason : ''}`,
+                });
+            } else {
+                // 1. Desmarcar como archivado en el batch
+                batch.update(horseRef, {
+                    archived: false,
+                    archivedAt: null,
+                    archivedReason: null,
+                });
+
+                // 2. Log de auditoría de reactivación en el batch
+                batch.set(logRef, {
+                    tenantId: currentTenant.id,
+                    timestamp: new Date().toISOString(),
+                    staffName: currentUser?.displayName || 'Sistema',
+                    type: 'horse_unarchived',
+                    horseId,
+                    details: 'Caballo desarchivado (reactivado)',
                 });
             }
 
-            // 4. Log de auditoría
-            await addDoc(collection(db, 'LOGS'), {
-                tenantId: currentTenant.id,
-                timestamp: new Date().toISOString(),
-                staffName: currentUser?.displayName || 'Sistema',
-                type: 'horse_archived',
-                horseId,
-                details: `Caballo dado de baja${reason ? ': ' + reason : ''}`,
-            });
+            // Ejecutar batch de forma atómica
+            await batch.commit();
 
-            notify('Caballo dado de baja correctamente', 'success');
+            notify(
+                archived ? 'Caballo archivado correctamente' : 'Caballo reactivado correctamente',
+                'success'
+            );
             return { success: true };
         } catch (e) {
             console.error(e);
-            notify('Error al dar de baja el caballo', 'error');
+            notify(
+                archived ? 'Error al archivar el caballo' : 'Error al reactivar el caballo',
+                'error'
+            );
+            return { success: false, error: e };
+        }
+    };
+
+    const updateHorseStatus = async (horseId, status) => {
+        try {
+            const batch = writeBatch(db);
+            const horseRef = doc(db, 'HORSES', horseId);
+            const logRef = doc(collection(db, 'LOGS'));
+
+            batch.update(horseRef, {
+                status,
+            });
+
+            batch.set(logRef, {
+                tenantId: currentTenant.id,
+                timestamp: new Date().toISOString(),
+                staffName: currentUser?.displayName || 'Sistema',
+                type: 'horse_status_changed',
+                horseId,
+                details: `Estado del caballo cambiado a ${status}`,
+            });
+
+            await batch.commit();
+            notify(`Estado actualizado a ${status}`, 'success');
+            return { success: true };
+        } catch (e) {
+            console.error(e);
+            notify('Error al actualizar el estado del caballo', 'error');
             return { success: false, error: e };
         }
     };
@@ -506,7 +572,8 @@ export function DataProvider({ children }) {
             const horseRef = await addDoc(collection(db, 'HORSES'), {
                 tenantId: currentTenant.id,
                 ownerId: clientDocId,
-                active: true,
+                archived: false,
+                status: 'activo',
                 location: 'box',
                 ...horse,
             });
@@ -654,7 +721,7 @@ export function DataProvider({ children }) {
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
         getLogsForHorse, getFinanceForUser,
         
-        releaseSpace, archiveHorse, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
+        releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse

@@ -99,6 +99,14 @@ export default function HorseDetailModal({ horse, onClose }) {
   return (
     <>
       <Modal isOpen={true} onClose={onClose} size="lg" hideDefaultHeader>
+        {/* ===== Archived Banner ===== */}
+        {horse.archived === true && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2.5 text-amber-800 text-xs">
+            <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+            <span className="flex-1 font-medium">Este caballo está archivado. Las acciones y la edición están deshabilitadas.</span>
+          </div>
+        )}
+
         {/* ===== Header ===== */}
         <div className="px-6 py-4 border-b border-ink-100 flex items-center justify-between bg-gradient-to-br from-sky-50 to-white">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -106,8 +114,16 @@ export default function HorseDetailModal({ horse, onClose }) {
               {horse.name?.[0]?.toUpperCase() || '?'}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-display text-lg font-medium text-ink-900 truncate">
-                {horse.name}
+              <div className="flex items-center gap-2">
+                <div className="font-display text-lg font-medium text-ink-900 truncate">
+                  {horse.name}
+                </div>
+                {horse.status === 'mantenimiento' && (
+                  <Badge variant="warning" size="xs">En mantenimiento</Badge>
+                )}
+                {horse.archived === true && (
+                  <Badge variant="neutral" size="xs">Archivado</Badge>
+                )}
               </div>
               <div className="text-xs text-ink-500 truncate">
                 {horse.breed || 'Raza no especificada'} · {owner?.displayName || 'Sin dueño'}
@@ -131,7 +147,7 @@ export default function HorseDetailModal({ horse, onClose }) {
         {/* ===== Body ===== */}
         <div className="max-h-[60vh] overflow-y-auto">
           {activeTab === 'info' && (
-            <InfoTab horse={horse} owner={owner} space={space} updateRow={updateRow} />
+            <InfoTab horse={horse} owner={owner} space={space} updateRow={updateRow} isArchived={horse.archived === true} />
           )}
           {activeTab === 'finance' && (
             <FinanceTab
@@ -140,6 +156,7 @@ export default function HorseDetailModal({ horse, onClose }) {
               currentPlan={currentPlan}
               summary={financialSummary}
               onMarkAsPaid={setChargeToMark}
+              isArchived={horse.archived === true}
             />
           )}
           {activeTab === 'location' && (
@@ -150,6 +167,7 @@ export default function HorseDetailModal({ horse, onClose }) {
               horse={horse} 
               onViewFull={() => setShowHealthHistory(true)} 
               onAddRecord={() => setShowCreateHealthRecord(true)} 
+              isArchived={horse.archived === true}
             />
           )}
         </div>
@@ -182,7 +200,7 @@ export default function HorseDetailModal({ horse, onClose }) {
 // ============================================================
 // Tab 1: Info
 // ============================================================
-function InfoTab({ horse, owner, space, updateRow }) {
+function InfoTab({ horse, owner, space, updateRow, isArchived }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     name: horse.name || '',
@@ -241,7 +259,8 @@ function InfoTab({ horse, owner, space, updateRow }) {
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50"
+            disabled={isArchived}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
           >
             <Pencil size={13} />
             Editar
@@ -340,7 +359,7 @@ function InfoTab({ horse, owner, space, updateRow }) {
 // ============================================================
 // Tab 2: Plan + Finanzas
 // ============================================================
-function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
+function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid, isArchived }) {
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -377,12 +396,14 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => alert('Tanda D: cambiar plan del caballo')}
-                className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0"
-              >
-                Cambiar
-              </button>
+              {!isArchived && (
+                <button
+                  onClick={() => alert('Tanda D: cambiar plan del caballo')}
+                  className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0"
+                >
+                  Cambiar
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -393,12 +414,14 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
                 Sin plan no se generan cargos mensuales automáticos
               </div>
             </div>
-            <button
-              onClick={() => alert('Tanda D: asignar plan al caballo')}
-              className="btn-secondary text-xs"
-            >
-              Asignar plan
-            </button>
+            {!isArchived && (
+              <button
+                onClick={() => alert('Tanda D: asignar plan al caballo')}
+                className="btn-secondary text-xs"
+              >
+                Asignar plan
+              </button>
+            )}
           </div>
         )}
       </section>
@@ -436,12 +459,14 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
           <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
             Cuenta corriente
           </div>
-          <button
-            onClick={() => alert('Tanda D: registrar cargo one-shot')}
-            className="text-xs font-medium text-primary-700 hover:text-primary-900"
-          >
-            + Cargo
-          </button>
+          {!isArchived && (
+            <button
+              onClick={() => alert('Tanda D: registrar cargo one-shot')}
+              className="text-xs font-medium text-primary-700 hover:text-primary-900"
+            >
+              + Cargo
+            </button>
+          )}
         </div>
 
         {visibleCharges.length === 0 ? (
@@ -456,6 +481,7 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
                 charge={charge}
                 onMarkAsPaid={() => onMarkAsPaid(charge)}
                 formatCurrency={formatCurrency}
+                isArchived={isArchived}
               />
             ))}
           </div>
@@ -469,7 +495,7 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid }) {
 // ============================================================
 // Sub-componente: fila de cargo
 // ============================================================
-function ChargeRow({ charge, onMarkAsPaid, formatCurrency }) {
+function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
   const isPending = charge.status === 'pending' || charge.status === 'overdue';
 
   const statusBadge = {
@@ -494,7 +520,7 @@ function ChargeRow({ charge, onMarkAsPaid, formatCurrency }) {
       <Badge variant={statusBadge.variant} size="sm">
         {statusBadge.label}
       </Badge>
-      {isPending && (
+      {isPending && !isArchived && (
         <button
           onClick={onMarkAsPaid}
           className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0 ml-2"
@@ -684,7 +710,7 @@ function MovementLogRow({ log }) {
 // ============================================================
 // Tab 4: Sanidad
 // ============================================================
-function SanidadTab({ horse, onViewFull, onAddRecord }) {
+function SanidadTab({ horse, onViewFull, onAddRecord, isArchived }) {
   const { getHealthRecordsByHorse, getHealthStatusByHorse } = useData();
   const records = getHealthRecordsByHorse(horse.id);
   const status = getHealthStatusByHorse(horse.id);
@@ -717,12 +743,14 @@ function SanidadTab({ horse, onViewFull, onAddRecord }) {
         <p className="text-sm text-ink-600 max-w-sm mb-6">
           Este caballo no tiene historial médico o de vacunación.
         </p>
-        <button
-          onClick={onAddRecord}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
-        >
-          Agregar primer registro
-        </button>
+        {!isArchived && (
+          <button
+            onClick={onAddRecord}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
+          >
+            Agregar primer registro
+          </button>
+        )}
       </div>
     );
   }

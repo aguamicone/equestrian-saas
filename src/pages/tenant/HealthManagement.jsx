@@ -11,7 +11,7 @@ export default function HealthManagement() {
   const [statusFilter, setStatusFilter] = useState('all'); // all, expired, upcoming, ok, no_booklet
 
   // --- Calculations ---
-  const activeHorses = useMemo(() => horses.filter(h => h.active !== false), [horses]);
+  const activeHorses = useMemo(() => horses.filter(h => !h.archived), [horses]);
 
   const horsesWithHealth = useMemo(() => {
     return activeHorses.map(horse => {
