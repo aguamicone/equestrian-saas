@@ -485,7 +485,7 @@ export function DataProvider({ children }) {
                 type: 'horse_plan_assigned',
                 by: currentUser.uid,
                 staffName: currentUser?.displayName || 'Sistema',
-                timestamp: new Date().toISOString(),
+                timestamp: serverTimestamp(),
                 details: `Plan asignado: ${plan.name}`
             });
 
@@ -529,7 +529,7 @@ export function DataProvider({ children }) {
                 type: 'horse_plan_unassigned',
                 by: currentUser.uid,
                 staffName: currentUser?.displayName || 'Sistema',
-                timestamp: new Date().toISOString(),
+                timestamp: serverTimestamp(),
                 details: `Plan quitado: ${plan?.name || planId}`
             });
 
