@@ -65,7 +65,7 @@ export default function ReleaseHorseModal({
       }
 
       // 2. Archivar el caballo (soft delete + libera el box automáticamente)
-      const result = await archiveHorse(horse.id, reason || `Liberación del ${space.name}`);
+      const result = await archiveHorse(horse.id, true, reason || `Liberación del ${space.name}`);
       if (!result?.success) {
         throw new Error(result?.error?.message || 'Error al archivar');
       }
