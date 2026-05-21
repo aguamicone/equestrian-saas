@@ -30,9 +30,13 @@ import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal
  *   horse: documento del caballo
  *   onClose: () => void
  */
-export default function HorseDetailModal({ horse: initialHorse, onClose }) {
+export default function HorseDetailModal({ horse, onClose }) {
   const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs, horses } = useData();
-  const horse = (horses || []).find(h => h.id === initialHorse.id) || initialHorse;
+  
+  // Tanda D2: resolver versión live del caballo desde el context para evitar
+  // prop stale (assignedPlanIds reactivo a onSnapshot). Patrón consistente con
+  // GestionarPlanesModal. Fallback al prop si el caballo desaparece del context.
+  const liveHorse = (horses || []).find(h => h.id === horse.id) || horse;
   
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
@@ -43,17 +47,17 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
 
   // ===== Resolver datos relacionados =====
   const owner = useMemo(() => {
-    return (tenantUsers || []).find(u => (u.uid || u.id) === horse.ownerId);
-  }, [tenantUsers, horse.ownerId]);
+    return (tenantUsers || []).find(u => (u.uid || u.id) === liveHorse.ownerId);
+  }, [tenantUsers, liveHorse.ownerId]);
 
   const space = useMemo(() => {
     return (spaces || []).find(s => s.horseId === horse.id);
   }, [spaces, horse.id]);
 
   const currentPlans = useMemo(() => {
-    const horsePlanIds = horse.assignedPlanIds || [];
+    const horsePlanIds = liveHorse.assignedPlanIds || [];
     return (pricingPlans || []).filter(p => horsePlanIds.includes(p.id));
-  }, [pricingPlans, horse.assignedPlanIds]);
+  }, [pricingPlans, liveHorse.assignedPlanIds]);
 
   // ===== Cargos de este caballo =====
   const horseCharges = useMemo(() => {
@@ -104,7 +108,7 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
     <>
       <Modal isOpen={true} onClose={onClose} size="lg" hideDefaultHeader>
         {/* ===== Archived Banner ===== */}
-        {horse.archived === true && (
+        {liveHorse.archived === true && (
           <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2.5 text-amber-800 text-xs">
             <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
             <span className="flex-1 font-medium">Este caballo está archivado. Las acciones y la edición están deshabilitadas.</span>
@@ -115,22 +119,22 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
         <div className="px-6 py-4 border-b border-ink-100 flex items-center justify-between bg-gradient-to-br from-sky-50 to-white">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-12 h-12 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-display text-xl font-medium flex-shrink-0">
-              {horse.name?.[0]?.toUpperCase() || '?'}
+              {liveHorse.name?.[0]?.toUpperCase() || '?'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <div className="font-display text-lg font-medium text-ink-900 truncate">
-                  {horse.name}
+                  {liveHorse.name}
                 </div>
-                {horse.status === 'mantenimiento' && (
+                {liveHorse.status === 'mantenimiento' && (
                   <Badge variant="warning" size="xs">En mantenimiento</Badge>
                 )}
-                {horse.archived === true && (
+                {liveHorse.archived === true && (
                   <Badge variant="neutral" size="xs">Archivado</Badge>
                 )}
               </div>
               <div className="text-xs text-ink-500 truncate">
-                {horse.breed || 'Raza no especificada'} · {owner?.displayName || 'Sin dueño'}
+                {liveHorse.breed || 'Raza no especificada'} · {owner?.displayName || 'Sin dueño'}
               </div>
             </div>
           </div>
@@ -151,28 +155,28 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
         {/* ===== Body ===== */}
         <div className="max-h-[60vh] overflow-y-auto">
           {activeTab === 'info' && (
-            <InfoTab horse={horse} owner={owner} space={space} updateRow={updateRow} isArchived={horse.archived === true} />
+            <InfoTab horse={liveHorse} owner={owner} space={space} updateRow={updateRow} isArchived={liveHorse.archived === true} />
           )}
           {activeTab === 'finance' && (
             <FinanceTab
-              horse={horse}
+              horse={liveHorse}
               charges={horseCharges}
               currentPlans={currentPlans}
               summary={financialSummary}
               onMarkAsPaid={setChargeToMark}
-              isArchived={horse.archived === true}
+              isArchived={liveHorse.archived === true}
               onOpenGestionarPlanes={() => setIsGestionarPlanesOpen(true)}
             />
           )}
           {activeTab === 'location' && (
-            <LocationTab horse={horse} space={space} logs={logs} />
+            <LocationTab horse={liveHorse} space={space} logs={logs} />
           )}
           {activeTab === 'sanidad' && (
             <SanidadTab 
-              horse={horse} 
+              horse={liveHorse} 
               onViewFull={() => setShowHealthHistory(true)} 
               onAddRecord={() => setShowCreateHealthRecord(true)} 
-              isArchived={horse.archived === true}
+              isArchived={liveHorse.archived === true}
             />
           )}
         </div>
@@ -182,7 +186,7 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
       {chargeToMark && (
         <MarkAsPaidModal
           charge={chargeToMark}
-          horse={horse}
+          horse={liveHorse}
           onClose={() => setChargeToMark(null)}
           onSuccess={() => {
             // Se refresca solo vía snapshot en DataContext
@@ -193,17 +197,17 @@ export default function HorseDetailModal({ horse: initialHorse, onClose }) {
 
       {/* ===== Sub-modales de Sanidad ===== */}
       {showHealthHistory && (
-        <HealthRecordModal horse={horse} onClose={() => setShowHealthHistory(false)} />
+        <HealthRecordModal horse={liveHorse} onClose={() => setShowHealthHistory(false)} />
       )}
       {showCreateHealthRecord && (
-        <CreateHealthRecordModal horse={horse} onClose={() => setShowCreateHealthRecord(false)} />
+        <CreateHealthRecordModal horse={liveHorse} onClose={() => setShowCreateHealthRecord(false)} />
       )}
 
       {isGestionarPlanesOpen && (
         <GestionarPlanesModal
           isOpen={isGestionarPlanesOpen}
           onClose={() => setIsGestionarPlanesOpen(false)}
-          horse={horse}
+          horse={liveHorse}
         />
       )}
     </>

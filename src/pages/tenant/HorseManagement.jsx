@@ -17,7 +17,6 @@ export default function HorseManagement() {
     const [menuHorse, setMenuHorse] = useState(null);
     
     // Tanda D2: integración del GestionarPlanesModal
-    // Resto de mejoras a HorseManagement (bug planId, filtros) en Fase 3
     const [gestionarPlanesHorse, setGestionarPlanesHorse] = useState(null);
 
     // O(1) Maps
