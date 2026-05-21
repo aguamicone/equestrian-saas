@@ -36,15 +36,22 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Firebase Admin credentials — NEVER commit
+# Firebase Admin credentials -- NEVER commit
 scripts/serviceAccount.json
 scripts/*serviceAccountKey*.json
 **/firebase-adminsdk-*.json
 
-# Capturas y documentación local (no pertenecen al repo)
+# Capturas y documentacion local (no pertenecen al repo)
 capturas-caballerizas/
 capturas/
 screenshots/
+validacion-d2-fase2/
 
-# Notas internas entre sesiones (no son parte del producto)
+# Scripts historicos y temporales de investigacion
+scripts-historicos/
+scripts/fix_gitignore.mjs
+
+# Notas y reportes internos entre sesiones (no son parte del producto)
 NOTAS_AGUSTIN.md
+PRE_INV_D2.md
+REPORTE_D2.md
