@@ -431,27 +431,27 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
             {currentPlans.map(plan => (
               <div key={plan.id} className="bg-primary-50 border border-primary-100 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <div className="font-display text-base font-medium text-primary-900">
                       {plan.name}
                     </div>
-                    <div className="text-sm text-primary-700 mt-0.5">
-                      {formatCurrency(plan.price)}
-                      {plan.frequency === 'monthly' && ' / mes'}
-                    </div>
-                    {plan.frequency !== 'monthly' && (
-                      <div className="mt-1">
-                        <Badge variant="neutral" size="sm">
-                          {plan.frequency === 'one-time' ? 'Único' : 'Sin frecuencia'}
-                        </Badge>
-                      </div>
-                    )}
                     {Array.isArray(plan.includes) && plan.includes.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {plan.includes.map(srv => (
-                          <Badge key={srv} variant="primary" size="sm">{srv}</Badge>
+                          <Badge key={srv} variant="neutral" size="sm">{srv}</Badge>
                         ))}
                       </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <div className="font-medium text-ink-900">
+                      {formatCurrency(plan.price)}
+                      {plan.frequency === 'monthly' && <span className="text-sm font-normal text-ink-600"> / mes</span>}
+                    </div>
+                    {plan.frequency !== 'monthly' && (
+                      <Badge variant="neutral" size="sm">
+                        {plan.frequency === 'one-time' ? 'Único' : 'Sin frecuencia'}
+                      </Badge>
                     )}
                   </div>
                 </div>
