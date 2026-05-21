@@ -21,6 +21,7 @@ import {
 import { Modal, Badge, Tabs } from '../../ui';
 import { useData } from '../../../context/DataContext';
 import MarkAsPaidModal from './MarkAsPaidModal';
+import GestionarPlanesModal from './GestionarPlanesModal';
 import HealthRecordModal from '../../health/modals/HealthRecordModal';
 import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal';
 
@@ -29,10 +30,13 @@ import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal
  *   horse: documento del caballo
  *   onClose: () => void
  */
-export default function HorseDetailModal({ horse, onClose }) {
-  const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs } = useData();
+export default function HorseDetailModal({ horse: initialHorse, onClose }) {
+  const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs, horses } = useData();
+  const horse = (horses || []).find(h => h.id === initialHorse.id) || initialHorse;
+  
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
+  const [isGestionarPlanesOpen, setIsGestionarPlanesOpen] = useState(false);
   
   const [showHealthHistory, setShowHealthHistory] = useState(false);
   const [showCreateHealthRecord, setShowCreateHealthRecord] = useState(false);
@@ -46,10 +50,10 @@ export default function HorseDetailModal({ horse, onClose }) {
     return (spaces || []).find(s => s.horseId === horse.id);
   }, [spaces, horse.id]);
 
-  const currentPlan = useMemo(() => {
-    if (!horse.planId) return null;
-    return (pricingPlans || []).find(p => p.id === horse.planId);
-  }, [pricingPlans, horse.planId]);
+  const currentPlans = useMemo(() => {
+    const horsePlanIds = horse.assignedPlanIds || [];
+    return (pricingPlans || []).filter(p => horsePlanIds.includes(p.id));
+  }, [pricingPlans, horse.assignedPlanIds]);
 
   // ===== Cargos de este caballo =====
   const horseCharges = useMemo(() => {
@@ -153,10 +157,11 @@ export default function HorseDetailModal({ horse, onClose }) {
             <FinanceTab
               horse={horse}
               charges={horseCharges}
-              currentPlan={currentPlan}
+              currentPlans={currentPlans}
               summary={financialSummary}
               onMarkAsPaid={setChargeToMark}
               isArchived={horse.archived === true}
+              onOpenGestionarPlanes={() => setIsGestionarPlanesOpen(true)}
             />
           )}
           {activeTab === 'location' && (
@@ -192,6 +197,14 @@ export default function HorseDetailModal({ horse, onClose }) {
       )}
       {showCreateHealthRecord && (
         <CreateHealthRecordModal horse={horse} onClose={() => setShowCreateHealthRecord(false)} />
+      )}
+
+      {isGestionarPlanesOpen && (
+        <GestionarPlanesModal
+          isOpen={isGestionarPlanesOpen}
+          onClose={() => setIsGestionarPlanesOpen(false)}
+          horse={horse}
+        />
       )}
     </>
   );
@@ -359,7 +372,7 @@ function InfoTab({ horse, owner, space, updateRow, isArchived }) {
 // ============================================================
 // Tab 2: Plan + Finanzas
 // ============================================================
-function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid, isArchived }) {
+function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, isArchived, onOpenGestionarPlanes }) {
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -375,48 +388,62 @@ function FinanceTab({ horse, charges, currentPlan, summary, onMarkAsPaid, isArch
 
       {/* ===== Sección Plan ===== */}
       <section>
-        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-2">
-          Plan actual
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+            Planes asignados
+          </div>
+          {!isArchived && currentPlans.length > 0 && (
+            <button
+              onClick={onOpenGestionarPlanes}
+              className="text-xs font-medium text-primary-700 hover:text-primary-900"
+            >
+              Gestionar
+            </button>
+          )}
         </div>
-        {currentPlan ? (
-          <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-display text-base font-medium text-primary-900">
-                  {currentPlan.name}
-                </div>
-                <div className="text-sm text-primary-700 mt-0.5">
-                  {formatCurrency(currentPlan.monthlyPrice)} / mes
-                </div>
-                {Array.isArray(currentPlan.includes) && currentPlan.includes.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {currentPlan.includes.map(srv => (
-                      <Badge key={srv} variant="primary" size="sm">{srv}</Badge>
-                    ))}
+
+        {currentPlans.length > 0 ? (
+          <div className="space-y-3">
+            {currentPlans.map(plan => (
+              <div key={plan.id} className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-base font-medium text-primary-900">
+                      {plan.name}
+                    </div>
+                    <div className="text-sm text-primary-700 mt-0.5">
+                      {formatCurrency(plan.price)} / mes
+                    </div>
+                    {Array.isArray(plan.includes) && plan.includes.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {plan.includes.map(srv => (
+                          <Badge key={srv} variant="primary" size="sm">{srv}</Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-              {!isArchived && (
-                <button
-                  onClick={() => alert('Tanda D: cambiar plan del caballo')}
-                  className="text-xs font-medium text-primary-700 hover:text-primary-900 flex-shrink-0"
-                >
-                  Cambiar
-                </button>
-              )}
+            ))}
+            
+            <div className="flex justify-end items-center text-xs font-medium text-ink-500 pt-1">
+              Total mensual:
+              <span className="font-mono text-sm text-ink-800 font-semibold ml-1.5">
+                {formatCurrency(currentPlans.reduce((sum, p) => sum + (p.price || 0), 0))}
+              </span>
             </div>
           </div>
         ) : (
           <div className="bg-ink-50 border border-dashed border-ink-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium text-ink-700">Sin plan asignado</div>
+              <div className="text-sm font-medium text-ink-700">Sin planes asignados</div>
               <div className="text-xs text-ink-500 mt-0.5">
                 Sin plan no se generan cargos mensuales automáticos
               </div>
             </div>
             {!isArchived && (
               <button
-                onClick={() => alert('Tanda D: asignar plan al caballo')}
+                onClick={onOpenGestionarPlanes}
                 className="btn-secondary text-xs"
               >
                 Asignar plan
