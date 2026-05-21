@@ -55,3 +55,8 @@ scripts/fix_gitignore.mjs
 NOTAS_AGUSTIN.md
 PRE_INV_D2.md
 REPORTE_D2.md
+
+# E2E validation outputs
+validacion-d2-fase3/
+REPORTE_D2_FASE2_VALIDACION.md
+REPORTE_D2_FASE3_VALIDACION.md
