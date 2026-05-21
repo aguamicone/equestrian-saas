@@ -773,6 +773,96 @@ export function DataProvider({ children }) {
         } catch(e) { console.error(e); notify("Error al guardar libreta", "error"); }
     };
 
+    const createOneTimeCharge = async ({ horse, amount, description, planId, date, markAsPaid }) => {
+        if (!horse || !horse.id) return { success: false, error: 'Caballo inválido' };
+        if (typeof amount !== 'number' || amount <= 0) return { success: false, error: 'Importe inválido' };
+        if (!description || !description.trim()) return { success: false, error: 'Descripción obligatoria' };
+        if (!date || typeof date !== 'string') return { success: false, error: 'Fecha inválida' };
+
+        const clientId = horse.ownerId || null;
+        const createdBy = currentUser?.uid || 'Unknown';
+        
+        try {
+            const batch = writeBatch(db);
+            
+            // 1. Crear el cargo
+            const newChargeRef = doc(collection(db, 'FINANCES'));
+            const chargeData = {
+                tenantId: currentTenant.id,
+                horseId: horse.id,
+                clientId,
+                type: 'income',
+                status: markAsPaid ? 'paid' : 'pending',
+                category: 'one-time',
+                amount: Number(amount),
+                description: description.trim(),
+                planId: planId || null,
+                date,
+                createdAt: serverTimestamp(),
+                paidAt: markAsPaid ? serverTimestamp() : null,
+                createdBy,
+            };
+            batch.set(newChargeRef, chargeData);
+
+            // 2. Si se marca como pagado, crear el payment
+            let paymentId = null;
+            if (markAsPaid) {
+                const newPaymentRef = doc(collection(db, 'FINANCES'));
+                paymentId = newPaymentRef.id;
+                batch.set(newPaymentRef, {
+                    tenantId: currentTenant.id,
+                    horseId: horse.id,
+                    clientId,
+                    type: 'payment',
+                    status: 'paid',
+                    amount: Number(amount),
+                    description: `Pago: ${description.trim()}`,
+                    category: 'Pago',
+                    date,
+                    paidAt: serverTimestamp(),
+                    relatedChargeId: newChargeRef.id,
+                    createdAt: serverTimestamp(),
+                    createdBy,
+                });
+            }
+
+            // 3. Crear Log
+            const newLogRef = doc(collection(db, 'LOGS'));
+            if (markAsPaid) {
+                batch.set(newLogRef, {
+                    type: 'charge_created_paid',
+                    tenantId: currentTenant.id,
+                    horseId: horse.id,
+                    chargeId: newChargeRef.id,
+                    paymentId,
+                    amount: Number(amount),
+                    description: description.trim(),
+                    planId: planId || null,
+                    by: createdBy,
+                    timestamp: serverTimestamp(),
+                });
+            } else {
+                batch.set(newLogRef, {
+                    type: 'charge_created',
+                    tenantId: currentTenant.id,
+                    horseId: horse.id,
+                    chargeId: newChargeRef.id,
+                    amount: Number(amount),
+                    description: description.trim(),
+                    planId: planId || null,
+                    by: createdBy,
+                    timestamp: serverTimestamp(),
+                });
+            }
+
+            await batch.commit();
+            return { success: true };
+        } catch (error) {
+            console.error('Error al crear cargo único:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
     const getHealthRecordsByHorse = (horseId) => {
         return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     };
@@ -815,7 +905,7 @@ export function DataProvider({ children }) {
         getLogsForHorse, getFinanceForUser,
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
-        assignPlanToHorse, removePlanFromHorse,
+        assignPlanToHorse, removePlanFromHorse, createOneTimeCharge,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
