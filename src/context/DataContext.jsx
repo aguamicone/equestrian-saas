@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 
@@ -450,6 +450,99 @@ export function DataProvider({ children }) {
             return { success: false, error: e };
         }
     };
+    
+    /**
+     * Tanda D2 — Gestión de planes asignados.
+     * Operación atómica: actualiza assignedPlanIds[] del caballo + registra log de auditoría.
+     * Decisión arquitectónica: assignedPlanIds[] como string[] (sin objetos ricos).
+     * Histórico de cambios se reconstruye desde LOGS si se necesita en el futuro.
+     * NO genera cargos automáticos (decisión de producto explícita).
+     */
+    const assignPlanToHorse = async (horseId, planId) => {
+        if (!horseId || !planId) {
+            return { success: false, error: new Error('horseId y planId no pueden estar vacíos') };
+        }
+        // Validar que el plan existe en pricingPlans del tenant
+        const plan = (pricingPlans || []).find(p => p.id === planId);
+        if (!plan) {
+            return { success: false, error: new Error(`El plan con ID ${planId} no existe para este tenant`) };
+        }
+
+        try {
+            const batch = writeBatch(db);
+            const horseRef = doc(db, 'HORSES', horseId);
+            const logRef = doc(collection(db, 'LOGS'));
+
+            batch.update(horseRef, {
+                assignedPlanIds: arrayUnion(planId),
+                updatedAt: serverTimestamp()
+            });
+
+            batch.set(logRef, {
+                tenantId: currentTenant.id,
+                horseId,
+                planId,
+                type: 'horse_plan_assigned',
+                by: currentUser.uid,
+                staffName: currentUser?.displayName || 'Sistema',
+                timestamp: serverTimestamp(),
+                details: `Plan asignado: ${plan.name}`
+            });
+
+            await batch.commit();
+            notify(`Plan "${plan.name}" asignado correctamente`, 'success');
+            return { success: true };
+        } catch (e) {
+            console.error('[D2 assignPlanToHorse] Error:', e);
+            notify('Error al asignar el plan', 'error');
+            return { success: false, error: e };
+        }
+    };
+
+    /**
+     * Tanda D2 — Gestión de planes asignados.
+     * Operación atómica: actualiza assignedPlanIds[] del caballo + registra log de auditoría.
+     * Decisión arquitectónica: assignedPlanIds[] como string[] (sin objetos ricos).
+     * Histórico de cambios se reconstruye desde LOGS si se necesita en el futuro.
+     * NO genera cargos automáticos (decisión de producto explícita).
+     */
+    const removePlanFromHorse = async (horseId, planId) => {
+        if (!horseId || !planId) {
+            return { success: false, error: new Error('horseId y planId no pueden estar vacíos') };
+        }
+        const plan = (pricingPlans || []).find(p => p.id === planId);
+
+        try {
+            const batch = writeBatch(db);
+            const horseRef = doc(db, 'HORSES', horseId);
+            const logRef = doc(collection(db, 'LOGS'));
+
+            batch.update(horseRef, {
+                assignedPlanIds: arrayRemove(planId),
+                updatedAt: serverTimestamp()
+            });
+
+            batch.set(logRef, {
+                tenantId: currentTenant.id,
+                horseId,
+                planId,
+                type: 'horse_plan_unassigned',
+                by: currentUser.uid,
+                staffName: currentUser?.displayName || 'Sistema',
+                timestamp: serverTimestamp(),
+                details: `Plan quitado: ${plan?.name || planId}`
+            });
+
+            await batch.commit();
+            notify(`Plan "${plan?.name || planId}" quitado correctamente`, 'success');
+            return { success: true };
+        } catch (e) {
+            console.error('[D2 removePlanFromHorse] Error:', e);
+            notify('Error al quitar el plan', 'error');
+            return { success: false, error: e };
+        }
+    };
+
 
     const moveHorseToSpace = async (horseId, fromSpaceId, toSpaceId) => {
         try {
@@ -722,6 +815,7 @@ export function DataProvider({ children }) {
         getLogsForHorse, getFinanceForUser,
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
+        assignPlanToHorse, removePlanFromHorse,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse

@@ -5,7 +5,7 @@
 // Responsive: popover anclado al botón en desktop (>=768px), bottom-sheet en mobile.
 
 import { useEffect, useRef, useState } from 'react';
-import { Archive, RotateCcw, Wrench, Play, X } from 'lucide-react';
+import { Archive, RotateCcw, Wrench, Play, X, ListChecks } from 'lucide-react';
 
 /**
  * Props:
@@ -25,6 +25,7 @@ export default function HorseActionsMenu({
   onSelectUnarchive,
   onSelectMaintenance,
   onSelectActive,
+  onOpenGestionarPlanes,
 }) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
@@ -82,6 +83,16 @@ export default function HorseActionsMenu({
       variant: 'default',
     });
   } else {
+    // Tanda D2: nueva acción de gestión de planes asignados
+    items.push({
+      key: 'manage-plans',
+      icon: ListChecks,
+      label: 'Gestionar planes',
+      description: 'Asignar o remover planes de facturación',
+      onClick: () => onOpenGestionarPlanes(horse),
+      variant: 'default',
+    });
+
     // Si está en mantenimiento o activo
     if (isMaintenance) {
       items.push({

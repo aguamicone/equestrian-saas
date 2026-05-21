@@ -4,6 +4,7 @@ import { Search, Plus, MoreVertical, LayoutList } from 'lucide-react';
 import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components/ui';
 import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
 import HorseActionsMenu from '../../components/horses/modals/HorseActionsMenu';
+import GestionarPlanesModal from '../../components/horses/modals/GestionarPlanesModal';
 
 export default function HorseManagement() {
     const { horses, finances, pricingPlans, spaces, tenantUsers, archiveHorse, updateHorseStatus } = useData();
@@ -14,6 +15,9 @@ export default function HorseManagement() {
     // States for contextual menu positioning and target horse
     const [anchorRect, setAnchorRect] = useState(null);
     const [menuHorse, setMenuHorse] = useState(null);
+    
+    // Tanda D2: integración del GestionarPlanesModal
+    const [gestionarPlanesHorse, setGestionarPlanesHorse] = useState(null);
 
     // O(1) Maps
     const usersById = useMemo(() => {
@@ -55,7 +59,7 @@ export default function HorseManagement() {
             const isArchived = horse.archived === true;
             if (isArchived) archived++; else active++;
             if (!isArchived) {
-                if (!horse.planId || horse.planId === '') noPlan++;
+                if (!horse.assignedPlanIds || horse.assignedPlanIds.length === 0) noPlan++;
                 if (horseDebtMap[horse.id]) withDebt++;
             }
         });
@@ -70,7 +74,7 @@ export default function HorseManagement() {
         // 1. Chip filter
         if (filterBy === 'active') result = result.filter(h => h.archived !== true);
         else if (filterBy === 'archived') result = result.filter(h => h.archived === true);
-        else if (filterBy === 'no-plan') result = result.filter(h => h.archived !== true && (!h.planId || h.planId === ''));
+        else if (filterBy === 'no-plan') result = result.filter(h => h.archived !== true && (!h.assignedPlanIds || h.assignedPlanIds.length === 0));
         else if (filterBy === 'debt') result = result.filter(h => h.archived !== true && horseDebtMap[h.id]);
 
         // 2. Search
@@ -176,16 +180,20 @@ export default function HorseManagement() {
             key: 'plan',
             header: 'Plan',
             render: (horse) => {
-                if (!horse.planId || horse.planId === '') {
+                const horsePlanIds = horse.assignedPlanIds || [];
+                if (horsePlanIds.length === 0) {
                     return <Badge variant="neutral" size="sm">Sin plan</Badge>;
                 }
-                const activePlans = pricingPlans.filter(p => horse.planId === p.id);
+                const activePlans = pricingPlans.filter(p => horsePlanIds.includes(p.id));
+                if (activePlans.length === 0) {
+                    return <Badge variant="neutral" size="sm">Sin plan</Badge>;
+                }
                 const totalCost = activePlans.reduce((sum, p) => sum + p.price, 0);
                 
                 return (
-                    <div className="flex flex-col gap-1 items-start">
+                    <div className="flex flex-col gap-0.5 items-start">
                         {activePlans.map(p => (
-                            <span key={p.id} className="text-sm text-ink-700">{p.name}</span>
+                            <span key={p.id} className="text-sm text-ink-700 font-medium">{p.name}</span>
                         ))}
                         <span className="text-xs font-mono text-ink-500">${totalCost.toLocaleString()}</span>
                     </div>
@@ -356,6 +364,18 @@ export default function HorseManagement() {
                     onSelectUnarchive={handleSelectUnarchive}
                     onSelectMaintenance={handleSelectMaintenance}
                     onSelectActive={handleSelectActive}
+                    onOpenGestionarPlanes={(horse) => {
+                        handleCloseMenu();
+                        setGestionarPlanesHorse(horse);
+                    }}
+                />
+            )}
+
+            {gestionarPlanesHorse && (
+                <GestionarPlanesModal
+                    isOpen={!!gestionarPlanesHorse}
+                    onClose={() => setGestionarPlanesHorse(null)}
+                    horse={gestionarPlanesHorse}
                 />
             )}
         </>
