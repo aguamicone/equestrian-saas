@@ -17,10 +17,17 @@ import { Modal, Badge, EmptyState } from '../../ui';
 import { useData } from '../../../context/DataContext';
 
 export default function GestionarPlanesModal({ isOpen, onClose, horse }) {
-  const { pricingPlans, assignPlanToHorse, removePlanFromHorse } = useData();
+  const { pricingPlans, assignPlanToHorse, removePlanFromHorse, horses } = useData();
   const [loadingByPlanId, setLoadingByPlanId] = useState({});
 
   if (!horse) return null;
+
+  // Tanda D2 fix: el prop `horse` viene como snapshot stale desde useState
+  // del componente padre. Para que los cambios de assignedPlanIds (via
+  // onSnapshot del DataContext) se reflejen en la UI, resolvemos la version
+  // live del caballo desde el context. Fallback al prop si el caballo
+  // desaparece del context (ej: archivado durante la sesion).
+  const liveHorse = horses.find(h => h.id === horse.id) || horse;
 
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
@@ -72,7 +79,7 @@ export default function GestionarPlanesModal({ isOpen, onClose, horse }) {
         ) : (
           <div className="divide-y divide-ink-100 border border-ink-200 rounded-xl overflow-hidden bg-white">
             {pricingPlans.map((plan) => {
-              const isAssigned = (horse.assignedPlanIds || []).includes(plan.id);
+              const isAssigned = (liveHorse.assignedPlanIds || []).includes(plan.id);
               const isLoading = !!loadingByPlanId[plan.id];
 
               return (
