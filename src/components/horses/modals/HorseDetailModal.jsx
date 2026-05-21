@@ -574,13 +574,19 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
 // Sub-componente: fila de cargo
 // ============================================================
 function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
-  const isPending = charge.status === 'pending' || charge.status === 'overdue';
-
-  const statusBadge = {
+  const statusConfig = {
     paid: { variant: 'success', label: 'Pagado' },
     pending: { variant: 'gold', label: 'Pendiente' },
     overdue: { variant: 'danger', label: 'Vencido' },
   }[charge.status] || { variant: 'neutral', label: charge.status };
+
+  const dateText = charge.date 
+    || (charge.createdAt?.toDate?.() 
+      ? charge.createdAt.toDate().toISOString().slice(0, 10) 
+      : charge.createdAt)
+    || 'Sin fecha';
+
+  const isPending = charge.status === 'pending' || charge.status === 'overdue';
 
   return (
     <div className="px-4 py-3 flex items-center gap-3 hover:bg-ink-50/50 transition-colors">
@@ -589,7 +595,7 @@ function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
           {charge.description || charge.category || 'Cargo sin descripción'}
         </div>
         <div className="text-[11px] text-ink-500 mt-0.5">
-          {charge.date || charge.createdAt || 'Sin fecha'}
+          {dateText}
         </div>
       </div>
       <div className="text-sm text-ink-900 font-medium tabular-nums flex-shrink-0">
