@@ -404,6 +404,9 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
     [charges]
   );
 
+  const monthlyPlans = currentPlans.filter(p => p.frequency === 'monthly');
+  const totalMensual = monthlyPlans.reduce((sum, p) => sum + (p.price || 0), 0);
+
   return (
     <div className="px-6 py-5 space-y-6">
 
@@ -428,13 +431,21 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
             {currentPlans.map(plan => (
               <div key={plan.id} className="bg-primary-50 border border-primary-100 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                  <div className="flex-1">
                     <div className="font-display text-base font-medium text-primary-900">
                       {plan.name}
                     </div>
                     <div className="text-sm text-primary-700 mt-0.5">
-                      {formatCurrency(plan.price)} / mes
+                      {formatCurrency(plan.price)}
+                      {plan.frequency === 'monthly' && ' / mes'}
                     </div>
+                    {plan.frequency !== 'monthly' && (
+                      <div className="mt-1">
+                        <Badge variant="neutral" size="sm">
+                          {plan.frequency === 'one-time' ? 'Único' : 'Sin frecuencia'}
+                        </Badge>
+                      </div>
+                    )}
                     {Array.isArray(plan.includes) && plan.includes.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {plan.includes.map(srv => (
@@ -450,7 +461,7 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
             <div className="flex justify-end items-center text-xs font-medium text-ink-500 pt-1">
               Total mensual:
               <span className="font-mono text-sm text-ink-800 font-semibold ml-1.5">
-                {formatCurrency(currentPlans.reduce((sum, p) => sum + (p.price || 0), 0))}
+                {formatCurrency(totalMensual)}
               </span>
             </div>
           </div>
