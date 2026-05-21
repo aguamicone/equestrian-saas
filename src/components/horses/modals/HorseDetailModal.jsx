@@ -395,8 +395,14 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
       minimumFractionDigits: 0,
     }).format(n || 0);
 
-  // Filtrar visualmente: ocultamos PAYMENTS (type=payment) de la lista, son ruido
-  const visibleCharges = charges.filter(c => c.type !== 'payment');
+  const visibleCharges = charges.filter(c => c.type !== 'payment' && c.category !== 'one-time');
+
+  const oneTimeCharges = useMemo(() =>
+    (charges || [])
+      .filter(f => f.category === 'one-time')
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [charges]
+  );
 
   return (
     <div className="px-6 py-5 space-y-6">
@@ -463,6 +469,36 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
               >
                 Asignar plan
               </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ===== Cargos únicos ===== */}
+      <section>
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-2">
+          Cargos únicos
+        </div>
+        
+        {oneTimeCharges.length === 0 ? (
+          <div className="text-center py-6 text-sm text-ink-500 italic bg-ink-50 rounded-xl border border-dashed border-ink-200">
+            Aún no se registraron cargos únicos para este caballo
+          </div>
+        ) : (
+          <div className="border border-ink-100 rounded-xl divide-y divide-ink-100 overflow-hidden">
+            {oneTimeCharges.slice(0, 5).map(charge => (
+              <ChargeRow
+                key={charge.id}
+                charge={charge}
+                onMarkAsPaid={() => onMarkAsPaid(charge)}
+                formatCurrency={formatCurrency}
+                isArchived={isArchived}
+              />
+            ))}
+            {oneTimeCharges.length > 5 && (
+              <div className="px-4 py-2 bg-surface-50 text-center text-[11px] text-ink-500 font-medium border-t border-ink-100">
+                Mostrando últimos 5 cargos
+              </div>
             )}
           </div>
         )}
