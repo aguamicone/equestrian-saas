@@ -24,6 +24,7 @@ import MarkAsPaidModal from './MarkAsPaidModal';
 import GestionarPlanesModal from './GestionarPlanesModal';
 import HealthRecordModal from '../../health/modals/HealthRecordModal';
 import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal';
+import RegistrarCargoModal from './RegistrarCargoModal';
 
 /**
  * Props:
@@ -41,6 +42,7 @@ export default function HorseDetailModal({ horse, onClose }) {
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
   const [isGestionarPlanesOpen, setIsGestionarPlanesOpen] = useState(false);
+  const [showRegistrarCargo, setShowRegistrarCargo] = useState(false);
   
   const [showHealthHistory, setShowHealthHistory] = useState(false);
   const [showCreateHealthRecord, setShowCreateHealthRecord] = useState(false);
@@ -166,6 +168,7 @@ export default function HorseDetailModal({ horse, onClose }) {
               onMarkAsPaid={setChargeToMark}
               isArchived={liveHorse.archived === true}
               onOpenGestionarPlanes={() => setIsGestionarPlanesOpen(true)}
+              onOpenRegistrarCargo={() => setShowRegistrarCargo(true)}
             />
           )}
           {activeTab === 'location' && (
@@ -207,6 +210,14 @@ export default function HorseDetailModal({ horse, onClose }) {
         <GestionarPlanesModal
           isOpen={isGestionarPlanesOpen}
           onClose={() => setIsGestionarPlanesOpen(false)}
+          horse={liveHorse}
+        />
+      )}
+
+      {showRegistrarCargo && (
+        <RegistrarCargoModal
+          isOpen={showRegistrarCargo}
+          onClose={() => setShowRegistrarCargo(false)}
           horse={liveHorse}
         />
       )}
@@ -376,7 +387,7 @@ function InfoTab({ horse, owner, space, updateRow, isArchived }) {
 // ============================================================
 // Tab 2: Plan + Finanzas
 // ============================================================
-function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, isArchived, onOpenGestionarPlanes }) {
+function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, isArchived, onOpenGestionarPlanes, onOpenRegistrarCargo }) {
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -492,7 +503,7 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
           </div>
           {!isArchived && (
             <button
-              onClick={() => alert('Tanda D: registrar cargo one-shot')}
+              onClick={onOpenRegistrarCargo}
               className="text-xs font-medium text-primary-700 hover:text-primary-900"
             >
               + Cargo
