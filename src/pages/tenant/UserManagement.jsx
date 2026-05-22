@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { getCollection } from '../../services/mockFirebase'; // Use dynamic collection
 import { Search, UserCog, User, Shield, Plus, X } from 'lucide-react';
+import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCaballoModal';
 
 export default function UserManagement() {
     const { currentUser } = useAuth();
@@ -11,9 +12,10 @@ export default function UserManagement() {
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
+    const [showAltaClienteCaballo, setShowAltaClienteCaballo] = useState(false);
     const [newName, setNewName] = useState('');
     const [newEmail, setNewEmail] = useState('');
-    const [newRole, setNewRole] = useState('client');
+    const [newRole, setNewRole] = useState('staff');
     const [newPhone, setNewPhone] = useState('');
 
     const handleCreateUser = (e) => {
@@ -31,7 +33,7 @@ export default function UserManagement() {
         setNewName('');
         setNewEmail('');
         setNewPhone('');
-        setNewRole('client');
+        setNewRole('staff');
     };
 
     // Use tenantUsers from context instead of local state for reactivity
@@ -148,8 +150,11 @@ export default function UserManagement() {
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => setNewRole('client')}
-                                        className={`p-3 rounded-lg border text-sm font-bold transition-all ${newRole === 'client' ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-slate-700 border-slate-600 text-slate-400 hover:bg-slate-600'}`}
+                                        onClick={() => {
+                                            setShowModal(false);
+                                            setShowAltaClienteCaballo(true);
+                                        }}
+                                        className={`p-3 rounded-lg border text-sm font-bold transition-all bg-slate-700 border-slate-600 text-slate-400 hover:bg-slate-600`}
                                     >
                                         Cliente (Dueño)
                                     </button>
@@ -173,6 +178,14 @@ export default function UserManagement() {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* Nuevo Cliente + Caballos Modal */}
+            {showAltaClienteCaballo && (
+                <AltaClienteCaballoModal
+                    isOpen={showAltaClienteCaballo}
+                    onClose={() => setShowAltaClienteCaballo(false)}
+                />
             )}
         </div>
     );
