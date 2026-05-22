@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { DollarSign, TrendingUp, TrendingDown, Settings, Plus, X, Edit, Trash } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Settings, Plus, X, Edit, Trash, Calendar } from 'lucide-react';
+import GenerarCargosMensualesModal from '../../components/finanzas/modals/GenerarCargosMensualesModal';
 
 export default function FinanceOverview() {
     const { finances, pricingPlans, updateRow, addPricingPlan } = useData();
@@ -8,6 +9,7 @@ export default function FinanceOverview() {
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
+    const [showGenerarCargos, setShowGenerarCargos] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
@@ -63,6 +65,13 @@ export default function FinanceOverview() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-3xl font-bold text-slate-100">Finanzas</h2>
+                <button 
+                    onClick={() => setShowGenerarCargos(true)}
+                    className="btn-primary flex items-center gap-2"
+                >
+                    <Calendar size={18} />
+                    Generar cargos del mes
+                </button>
             </div>
 
             {/* Tabs */}
@@ -260,6 +269,11 @@ export default function FinanceOverview() {
                     </div>
                 </div>
             )}
+
+            <GenerarCargosMensualesModal 
+                isOpen={showGenerarCargos} 
+                onClose={() => setShowGenerarCargos(false)} 
+            />
         </div>
     );
 }
