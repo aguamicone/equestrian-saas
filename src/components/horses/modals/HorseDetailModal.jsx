@@ -1,4 +1,4 @@
-// src/components/horses/modals/HorseDetailModal.jsx
+﻿// src/components/horses/modals/HorseDetailModal.jsx
 //
 // Modal de detalle del caballo con tabs:
 //   Tab 1: Info (datos básicos editables)
@@ -24,6 +24,7 @@ import MarkAsPaidModal from './MarkAsPaidModal';
 import GestionarPlanesModal from './GestionarPlanesModal';
 import HealthRecordModal from '../../health/modals/HealthRecordModal';
 import CreateHealthRecordModal from '../../health/modals/CreateHealthRecordModal';
+import RegistrarCargoModal from './RegistrarCargoModal';
 
 /**
  * Props:
@@ -41,6 +42,7 @@ export default function HorseDetailModal({ horse, onClose }) {
   const [activeTab, setActiveTab] = useState('info');
   const [chargeToMark, setChargeToMark] = useState(null); // cargo seleccionado para marcar pagado
   const [isGestionarPlanesOpen, setIsGestionarPlanesOpen] = useState(false);
+  const [showRegistrarCargo, setShowRegistrarCargo] = useState(false);
   
   const [showHealthHistory, setShowHealthHistory] = useState(false);
   const [showCreateHealthRecord, setShowCreateHealthRecord] = useState(false);
@@ -166,6 +168,7 @@ export default function HorseDetailModal({ horse, onClose }) {
               onMarkAsPaid={setChargeToMark}
               isArchived={liveHorse.archived === true}
               onOpenGestionarPlanes={() => setIsGestionarPlanesOpen(true)}
+              onOpenRegistrarCargo={() => setShowRegistrarCargo(true)}
             />
           )}
           {activeTab === 'location' && (
@@ -207,6 +210,14 @@ export default function HorseDetailModal({ horse, onClose }) {
         <GestionarPlanesModal
           isOpen={isGestionarPlanesOpen}
           onClose={() => setIsGestionarPlanesOpen(false)}
+          horse={liveHorse}
+        />
+      )}
+
+      {showRegistrarCargo && (
+        <RegistrarCargoModal
+          isOpen={showRegistrarCargo}
+          onClose={() => setShowRegistrarCargo(false)}
           horse={liveHorse}
         />
       )}
@@ -376,7 +387,7 @@ function InfoTab({ horse, owner, space, updateRow, isArchived }) {
 // ============================================================
 // Tab 2: Plan + Finanzas
 // ============================================================
-function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, isArchived, onOpenGestionarPlanes }) {
+function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, isArchived, onOpenGestionarPlanes, onOpenRegistrarCargo }) {
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -384,8 +395,17 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
       minimumFractionDigits: 0,
     }).format(n || 0);
 
-  // Filtrar visualmente: ocultamos PAYMENTS (type=payment) de la lista, son ruido
-  const visibleCharges = charges.filter(c => c.type !== 'payment');
+  const visibleCharges = charges.filter(c => c.type !== 'payment' && c.category !== 'one-time');
+
+  const oneTimeCharges = useMemo(() =>
+    (charges || [])
+      .filter(f => f.category === 'one-time')
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [charges]
+  );
+
+  const monthlyPlans = currentPlans.filter(p => p.frequency === 'monthly');
+  const totalMensual = monthlyPlans.reduce((sum, p) => sum + (p.price || 0), 0);
 
   return (
     <div className="px-6 py-5 space-y-6">
@@ -415,15 +435,23 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
                     <div className="font-display text-base font-medium text-primary-900">
                       {plan.name}
                     </div>
-                    <div className="text-sm text-primary-700 mt-0.5">
-                      {formatCurrency(plan.price)} / mes
-                    </div>
                     {Array.isArray(plan.includes) && plan.includes.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {plan.includes.map(srv => (
-                          <Badge key={srv} variant="primary" size="sm">{srv}</Badge>
+                          <Badge key={srv} variant="neutral" size="sm">{srv}</Badge>
                         ))}
                       </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <div className="font-medium text-ink-900">
+                      {formatCurrency(plan.price)}
+                      {plan.frequency === 'monthly' && <span className="text-sm font-normal text-ink-600"> / mes</span>}
+                    </div>
+                    {plan.frequency !== 'monthly' && (
+                      <Badge variant="neutral" size="sm">
+                        {plan.frequency === 'one-time' ? 'Único' : 'Sin frecuencia'}
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -433,7 +461,7 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
             <div className="flex justify-end items-center text-xs font-medium text-ink-500 pt-1">
               Total mensual:
               <span className="font-mono text-sm text-ink-800 font-semibold ml-1.5">
-                {formatCurrency(currentPlans.reduce((sum, p) => sum + (p.price || 0), 0))}
+                {formatCurrency(totalMensual)}
               </span>
             </div>
           </div>
@@ -452,6 +480,36 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
               >
                 Asignar plan
               </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ===== Cargos únicos ===== */}
+      <section>
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-2">
+          Cargos únicos
+        </div>
+        
+        {oneTimeCharges.length === 0 ? (
+          <div className="text-center py-6 text-sm text-ink-500 italic bg-ink-50 rounded-xl border border-dashed border-ink-200">
+            Aún no se registraron cargos únicos para este caballo
+          </div>
+        ) : (
+          <div className="border border-ink-100 rounded-xl divide-y divide-ink-100 overflow-hidden">
+            {oneTimeCharges.slice(0, 5).map(charge => (
+              <ChargeRow
+                key={charge.id}
+                charge={charge}
+                onMarkAsPaid={() => onMarkAsPaid(charge)}
+                formatCurrency={formatCurrency}
+                isArchived={isArchived}
+              />
+            ))}
+            {oneTimeCharges.length > 5 && (
+              <div className="px-4 py-2 bg-surface-50 text-center text-[11px] text-ink-500 font-medium border-t border-ink-100">
+                Mostrando últimos 5 cargos
+              </div>
             )}
           </div>
         )}
@@ -492,7 +550,7 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
           </div>
           {!isArchived && (
             <button
-              onClick={() => alert('Tanda D: registrar cargo one-shot')}
+              onClick={onOpenRegistrarCargo}
               className="text-xs font-medium text-primary-700 hover:text-primary-900"
             >
               + Cargo
@@ -527,13 +585,19 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
 // Sub-componente: fila de cargo
 // ============================================================
 function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
-  const isPending = charge.status === 'pending' || charge.status === 'overdue';
-
-  const statusBadge = {
+  const statusConfig = {
     paid: { variant: 'success', label: 'Pagado' },
     pending: { variant: 'gold', label: 'Pendiente' },
     overdue: { variant: 'danger', label: 'Vencido' },
   }[charge.status] || { variant: 'neutral', label: charge.status };
+
+  const dateText = charge.date 
+    || (charge.createdAt?.toDate?.() 
+      ? charge.createdAt.toDate().toISOString().slice(0, 10) 
+      : charge.createdAt)
+    || 'Sin fecha';
+
+  const isPending = charge.status === 'pending' || charge.status === 'overdue';
 
   return (
     <div className="px-4 py-3 flex items-center gap-3 hover:bg-ink-50/50 transition-colors">
@@ -542,14 +606,14 @@ function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
           {charge.description || charge.category || 'Cargo sin descripción'}
         </div>
         <div className="text-[11px] text-ink-500 mt-0.5">
-          {charge.date || charge.createdAt || 'Sin fecha'}
+          {dateText}
         </div>
       </div>
       <div className="text-sm text-ink-900 font-medium tabular-nums flex-shrink-0">
         {formatCurrency(charge.amount)}
       </div>
-      <Badge variant={statusBadge.variant} size="sm">
-        {statusBadge.label}
+      <Badge variant={statusConfig.variant} size="sm">
+        {statusConfig.label}
       </Badge>
       {isPending && !isArchived && (
         <button

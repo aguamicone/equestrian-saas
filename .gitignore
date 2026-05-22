@@ -60,3 +60,30 @@ REPORTE_D2.md
 validacion-d2-fase3/
 REPORTE_D2_FASE2_VALIDACION.md
 REPORTE_D2_FASE3_VALIDACION.md
+# D3 - Capturas
+capturas-d3/
+
+# Scripts de testing y validacion (no pertenecen al repo)
+scripts/*.cjs
+scripts/*.png
+scripts/*.html
+
+# Pre-investigacion de tandas (notas de trabajo, no parte del producto)
+PRE_INV_D3.md
+
+# Notas y reportes provisionales
+NOTAS_AGUSTIN_APPEND.md
+
+# D3 - Capturas
+capturas-d3/
+
+# Scripts de testing y validacion (no pertenecen al repo)
+scripts/*.cjs
+scripts/*.png
+scripts/*.html
+
+# Pre-investigacion de tandas (notas de trabajo, no parte del producto)
+PRE_INV_D3.md
+
+# Notas y reportes provisionales
+NOTAS_AGUSTIN_APPEND.md
