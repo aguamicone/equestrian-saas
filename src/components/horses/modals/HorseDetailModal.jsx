@@ -1,4 +1,4 @@
-// src/components/horses/modals/HorseDetailModal.jsx
+﻿// src/components/horses/modals/HorseDetailModal.jsx
 //
 // Modal de detalle del caballo con tabs:
 //   Tab 1: Info (datos básicos editables)
@@ -612,8 +612,8 @@ function ChargeRow({ charge, onMarkAsPaid, formatCurrency, isArchived }) {
       <div className="text-sm text-ink-900 font-medium tabular-nums flex-shrink-0">
         {formatCurrency(charge.amount)}
       </div>
-      <Badge variant={statusBadge.variant} size="sm">
-        {statusBadge.label}
+      <Badge variant={statusConfig.variant} size="sm">
+        {statusConfig.label}
       </Badge>
       {isPending && !isArchived && (
         <button
