@@ -291,3 +291,4 @@ Listo para commit + push + PR + merge + validaciÃ³n en producciÃ³n.
 - **TR-9:** El RegistrarCargoModal inyecta valores fijos (category: one-time). Podría refactorizarse en el futuro para soportar más categorías.
 - **TR-10:** Falta persistir metadatos de Responsable o Sector en cargos custom si la clínica crece.
 - **TR-11:** La reversión de un cargo Ya cobrado por error humano requeriría un cargo compensatorio, actualmente no hay UI para editar cargos una vez creados.
+- **TR-16:** USERS puede tener emails duplicados si un email existe en Firestore pero no en Auth. MitigaciÃ³n V2: query previa por email antes de crear Auth.

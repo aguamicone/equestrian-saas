@@ -23,4 +23,4 @@ try {
     console.warn("⚠️ Firebase no inicializado. ¿Faltan las variables de entorno (.env.local)?", error);
 }
 
-export { auth, db, storage };
+export { auth, db, storage, firebaseConfig };

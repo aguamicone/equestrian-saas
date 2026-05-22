@@ -5,12 +5,14 @@ import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components
 import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
 import HorseActionsMenu from '../../components/horses/modals/HorseActionsMenu';
 import GestionarPlanesModal from '../../components/horses/modals/GestionarPlanesModal';
+import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCaballoModal';
 
 export default function HorseManagement() {
     const { horses, finances, pricingPlans, spaces, tenantUsers, archiveHorse, updateHorseStatus } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterBy, setFilterBy] = useState('active'); // 'active' | 'all' | 'archived' | 'no-plan' | 'debt'
     const [selectedHorse, setSelectedHorse] = useState(null);
+    const [showAltaClienteCaballo, setShowAltaClienteCaballo] = useState(false);
 
     // States for contextual menu positioning and target horse
     const [anchorRect, setAnchorRect] = useState(null);
@@ -92,7 +94,7 @@ export default function HorseManagement() {
     }, [horses, filterBy, searchTerm, usersById, horseDebtMap]);
 
     // Action handlers
-    const handleAddHorse = () => alert('Tanda E: alta de caballo nuevo');
+    const handleAddHorse = () => setShowAltaClienteCaballo(true);
     
     const handleMenuClick = (e, horse) => {
         e.stopPropagation();
@@ -376,6 +378,14 @@ export default function HorseManagement() {
                     isOpen={!!gestionarPlanesHorse}
                     onClose={() => setGestionarPlanesHorse(null)}
                     horse={gestionarPlanesHorse}
+                />
+            )}
+
+            {/* Nuevo Cliente + Caballos Modal */}
+            {showAltaClienteCaballo && (
+                <AltaClienteCaballoModal
+                    isOpen={showAltaClienteCaballo}
+                    onClose={() => setShowAltaClienteCaballo(false)}
                 />
             )}
         </>
