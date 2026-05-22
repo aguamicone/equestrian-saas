@@ -3,6 +3,8 @@ import { db } from '../services/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
+import { createUserWithEmailAndPassword, signOut, deleteUser } from 'firebase/auth';
+import { secondaryAuth } from '../services/secondaryApp';
 
 const DataContext = createContext();
 
@@ -863,6 +865,106 @@ export function DataProvider({ children }) {
         }
     };
 
+    const createClientWithHorses = async ({ client, horses }) => {
+        if (!currentTenant?.id) {
+            return { success: false, error: 'Tenant no detectado. Reiniciá sesión.' };
+        }
+        if (!currentUser?.uid) {
+            return { success: false, error: 'Sesión inválida. Reiniciá sesión.' };
+        }
+
+        if (!client || !client.email || !client.password || !client.displayName || !client.phoneNumber) {
+            return { success: false, error: 'Datos de cliente incompletos' };
+        }
+        if (!horses || horses.length === 0) {
+            return { success: false, error: 'Debe ingresar al menos un caballo' };
+        }
+        for (const h of horses) {
+            if (!h.name || !h.breed || h.age === undefined || h.age === '' || isNaN(Number(h.age)) || Number(h.age) < 0) {
+                return { success: false, error: 'Datos de caballo incompletos o edad inválida' };
+            }
+        }
+
+        let newAuthUser = null;
+
+        try {
+            // 1. Crear Auth user en secondary instance
+            const userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, client.password);
+            newAuthUser = userCred.user;
+            const clientUid = newAuthUser.uid;
+
+            // 2. signOut de secondary instance
+            await signOut(secondaryAuth);
+
+            // 3. Batch atómico
+            const batch = writeBatch(db);
+
+            // Doc USERS
+            const userRef = doc(db, 'USERS', clientUid);
+            batch.set(userRef, {
+                uid: clientUid,
+                email: client.email,
+                displayName: client.displayName,
+                phoneNumber: client.phoneNumber,
+                role: 'client',
+                tenantId: currentTenant.id,
+                archived: false,
+                createdAt: serverTimestamp(),
+                createdBy: currentUser.uid
+            });
+
+            // Docs HORSES
+            const horseIds = [];
+            for (const h of horses) {
+                const horseRef = doc(collection(db, 'HORSES'));
+                horseIds.push(horseRef.id);
+                batch.set(horseRef, {
+                    tenantId: currentTenant.id,
+                    name: h.name,
+                    breed: h.breed,
+                    age: Number(h.age),
+                    ownerId: clientUid,
+                    assignedPlanIds: [],
+                    archived: false,
+                    status: 'activo',
+                    createdAt: serverTimestamp(),
+                    createdBy: currentUser.uid
+                });
+            }
+
+            // Doc LOGS
+            const logRef = doc(collection(db, 'LOGS'));
+            batch.set(logRef, {
+                type: 'client_onboarded',
+                tenantId: currentTenant.id,
+                clientUid,
+                clientEmail: client.email,
+                horseIds,
+                horseCount: horses.length,
+                by: currentUser.uid,
+                timestamp: serverTimestamp()
+            });
+
+            await batch.commit();
+
+            return { success: true, clientUid, horseIds };
+        } catch (error) {
+            console.error('Error al crear cliente con caballos:', error);
+            
+            // Limpieza si auth se creó pero Firestore falló
+            if (newAuthUser) {
+                try {
+                    await deleteUser(newAuthUser);
+                } catch (cleanupError) {
+                    console.error('Error al limpiar Auth user tras fallo de Firestore:', cleanupError);
+                    return { success: false, error: 'partial-failure', authUid: newAuthUser.uid };
+                }
+            }
+            
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
     const getHealthRecordsByHorse = (horseId) => {
         return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     };
@@ -904,7 +1006,7 @@ export function DataProvider({ children }) {
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
         getLogsForHorse, getFinanceForUser,
         
-        releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, assignExistingHorseToSpace,
+        releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
         assignPlanToHorse, removePlanFromHorse, createOneTimeCharge,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
