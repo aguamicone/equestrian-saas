@@ -5,6 +5,9 @@ import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { createUserWithEmailAndPassword, signOut, deleteUser } from 'firebase/auth';
 import { secondaryAuth } from '../services/secondaryApp';
+import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { MONTHLY_DUE_DAY } from '../services/config';
 
 const DataContext = createContext();
 
@@ -965,6 +968,109 @@ export function DataProvider({ children }) {
         }
     };
 
+    const generateMonthlyCharges = async ({ month }) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+            return { success: false, error: 'Formato de mes inválido' };
+        }
+
+        try {
+            const dateString = `${month}-01`;
+            const dueDateString = `${month}-${String(MONTHLY_DUE_DAY).padStart(2, '0')}`;
+            
+            const monthDate = parse(month, "yyyy-MM", new Date());
+            const monthName = format(monthDate, "MMMM yyyy", { locale: es });
+            const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+            const ops = [];
+            const activeHorses = horses.filter(h => !h.archived && h.assignedPlanIds?.length > 0);
+            
+            const monthlyPlanMap = {};
+            pricingPlans.forEach(p => {
+                if (p.frequency === 'monthly' && !p.archived) {
+                    monthlyPlanMap[p.id] = p;
+                }
+            });
+
+            activeHorses.forEach(horse => {
+                horse.assignedPlanIds.forEach(planId => {
+                    const plan = monthlyPlanMap[planId];
+                    if (plan) {
+                        ops.push({
+                            horseId: horse.id,
+                            planId: plan.id,
+                            planName: plan.name,
+                            planPrice: plan.price,
+                            ownerId: horse.ownerId || null
+                        });
+                    }
+                });
+            });
+
+            if (ops.length === 0) {
+                return { success: true, chargeCount: 0, skippedCount: 0, message: "No hay caballos con planes mensuales para generar." };
+            }
+
+            const existingCharges = finances.filter(f => f.date === dateString && f.category === 'plan');
+            const existingKeys = new Set(existingCharges.map(f => `${f.horseId}|${f.planId}`));
+
+            const batch = writeBatch(db);
+            const chargeIds = [];
+            const skipped = [];
+
+            for (const op of ops) {
+                const key = `${op.horseId}|${op.planId}`;
+                if (existingKeys.has(key)) {
+                    skipped.push(key);
+                } else {
+                    const chargeRef = doc(collection(db, 'FINANCES'));
+                    batch.set(chargeRef, {
+                        tenantId: currentTenant.id,
+                        horseId: op.horseId,
+                        clientId: op.ownerId,
+                        type: 'income',
+                        status: 'pending',
+                        category: 'plan',
+                        amount: Number(op.planPrice),
+                        description: `${op.planName} - ${capitalizedMonth}`,
+                        planId: op.planId,
+                        date: dateString,
+                        dueDate: dueDateString,
+                        createdAt: serverTimestamp(),
+                        createdBy: currentUser.uid,
+                    });
+                    chargeIds.push(chargeRef.id);
+                }
+            }
+
+            if (chargeIds.length === 0) {
+                return { success: true, chargeCount: 0, skippedCount: skipped.length, message: "Todos los cargos ya existen." };
+            }
+
+            const logRef = doc(collection(db, 'LOGS'));
+            batch.set(logRef, {
+                type: 'monthly_charges_generated',
+                tenantId: currentTenant.id,
+                monthGenerated: month,
+                chargeIds,
+                chargeCount: chargeIds.length,
+                skippedCount: skipped.length,
+                by: currentUser.uid,
+                timestamp: serverTimestamp(),
+            });
+
+            await batch.commit();
+
+            return { success: true, chargeCount: chargeIds.length, skippedCount: skipped.length, chargeIds, month };
+
+        } catch (error) {
+            console.error('Error al generar cargos mensuales:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
     const getHealthRecordsByHorse = (horseId) => {
         return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     };
@@ -1007,7 +1113,7 @@ export function DataProvider({ children }) {
         getLogsForHorse, getFinanceForUser,
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
-        assignPlanToHorse, removePlanFromHorse, createOneTimeCharge,
+        assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
