@@ -258,8 +258,17 @@ service cloud.firestore {
       allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
       allow create: if isSuperAdmin() || isCreatingForMyTenant();
       allow update: if isSuperAdmin() || (
-        isUpdatingMyTenantDoc() &&
-        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+        isUpdatingMyTenantDoc() && (
+          // Admin y staff pueden actualizar siempre
+          getUserData().role == 'tenantAdmin' || 
+          getUserData().role == 'staff' ||
+          // Cliente puede cancelar SU propia solicitud SOLO si está pending
+          (
+              request.auth.uid == resource.data.clientId &&
+              (resource.data.status == 'pending_staff' || resource.data.status == 'pending_admin') &&
+              request.resource.data.status == 'cancelled'
+          )
+        )
       );
       allow delete: if isSuperAdmin() || (
         isDeletingMyTenantDoc() &&
