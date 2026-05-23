@@ -1,47 +1,25 @@
-import { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { CreditCard, DollarSign, Calendar, CheckCircle } from 'lucide-react';
+import { differenceInDays, parseISO } from 'date-fns';
 
 export default function ClientFinance() {
     const { currentUser } = useAuth();
-    const { getFinanceForUser, addPayment, horses, pricingPlans } = useData();
+    const { getPendingChargesForUser, getPaidChargesForUser, horses, pricingPlans } = useData();
 
-    const transactions = getFinanceForUser(currentUser.uid);
+    const pendingCharges = getPendingChargesForUser(currentUser.uid);
+    const paidCharges = getPaidChargesForUser(currentUser.uid);
     const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
 
-    // Calculate Monthly Fee based on Assigned Plans
+    // Suma real de deuda pendiente
+    const amountDue = pendingCharges.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+
+    // Resumen de servicios contratados
     const monthlyFee = myHorses.reduce((acc, horse) => {
         const activePlans = pricingPlans.filter(p => horse.assignedPlanIds?.includes(p.id));
-        const horseCost = activePlans.reduce((sum, p) => sum + p.price, 0);
+        const horseCost = activePlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
         return acc + horseCost;
     }, 0);
-
-    // Simulation: Amount Due is either the monthly fee (if not paid) or 0
-    // Real logic would check if current month invoice is generated and paid.
-    // We will assume simply that we owe the monthly fee for "Next Month" for demo purposes.
-    const [showPayModal, setShowPayModal] = useState(false);
-    const [processing, setProcessing] = useState(false);
-
-    // For demo: Let's assume there is a pending debt equal to monthly fee if not 0, else 0
-    const [amountDue, setAmountDue] = useState(monthlyFee > 0 ? monthlyFee : 0);
-
-    const handlePay = () => {
-        setProcessing(true);
-        setTimeout(() => {
-            addPayment({
-                amount: amountDue,
-                category: 'Pensión',
-                description: 'Pago Online - Servicios Mensuales',
-                clientId: currentUser.uid,
-                type: 'income',
-                status: 'paid'
-            });
-            setAmountDue(0);
-            setProcessing(false);
-            setShowPayModal(false);
-        }, 2000);
-    };
 
     return (
         <div>
@@ -56,7 +34,12 @@ export default function ClientFinance() {
                     </div>
                     {amountDue > 0 ? (
                         <div className="mt-4">
-                            <button onClick={() => setShowPayModal(true)} className="btn-primary w-full flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20">
+                            <button 
+                                disabled={true} 
+                                title="Pagos online próximamente. Coordiná pago con el haras." 
+                                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                                className="btn-primary w-full flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20"
+                            >
                                 <CreditCard size={20} /> Pagar Ahora
                             </button>
                         </div>
@@ -74,8 +57,8 @@ export default function ClientFinance() {
                             <DollarSign size={20} />
                         </div>
                         <div>
-                            <div className="text-white font-bold">Cuota Mensual Estimada</div>
-                            <div className="text-xs text-slate-500">Basado en servicios activos</div>
+                            <div className="text-white font-bold">Resumen de Servicios Contratados</div>
+                            <div className="text-xs text-slate-500">Tus servicios mensuales activos</div>
                         </div>
                     </div>
 
@@ -83,7 +66,7 @@ export default function ClientFinance() {
                         {myHorses.map(horse => {
                             const activePlans = pricingPlans.filter(p => horse.assignedPlanIds?.includes(p.id));
                             if (activePlans.length === 0) return null;
-                            const horseTotal = activePlans.reduce((sum, p) => sum + p.price, 0);
+                            const horseTotal = activePlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
 
                             return (
                                 <div key={horse.id} className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-2">
@@ -101,17 +84,70 @@ export default function ClientFinance() {
                     </div>
 
                     <div className="mt-3 pt-3 border-t border-slate-700 flex justify-between items-center text-sm">
-                        <span className="text-slate-400">Total Mensual</span>
+                        <span className="text-slate-400">Costo mensual de tus servicios</span>
                         <span className="text-gold-400 font-bold font-mono">${monthlyFee.toLocaleString()}</span>
                     </div>
                 </div>
             </div>
 
+            {/* Mis Cargos Pendientes */}
+            {pendingCharges.length > 0 && (
+                <div className="glass-card border border-slate-700 overflow-hidden mb-8">
+                    <div className="p-4 border-b border-slate-700 font-bold text-slate-200">
+                        Mis Cargos Pendientes
+                    </div>
+                    <div className="divide-y divide-slate-700">
+                        {pendingCharges.map(charge => {
+                            // Calcular indicador de vencimiento
+                            let dueDateLabel = 'Sin vencimiento definido';
+                            let dueDateColor = 'text-slate-500';
+                            
+                            if (charge.dueDate) {
+                                const daysUntilDue = differenceInDays(parseISO(charge.dueDate), new Date());
+                                if (daysUntilDue < 0) {
+                                    const absDays = Math.abs(daysUntilDue);
+                                    dueDateLabel = `Vencido hace ${absDays} día${absDays === 1 ? '' : 's'}`;
+                                    dueDateColor = 'text-red-400';
+                                } else if (daysUntilDue === 0) {
+                                    dueDateLabel = 'Vence hoy';
+                                    dueDateColor = 'text-amber-400';
+                                } else if (daysUntilDue <= 3) {
+                                    dueDateLabel = `Vence en ${daysUntilDue} día${daysUntilDue === 1 ? '' : 's'}`;
+                                    dueDateColor = 'text-amber-400';
+                                } else {
+                                    dueDateLabel = `Vence en ${daysUntilDue} días`;
+                                    dueDateColor = 'text-slate-400';
+                                }
+                            }
+                            
+                            return (
+                                <div key={charge.id} className="p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-2 bg-amber-500/10 text-amber-400 rounded-full">
+                                            <Calendar size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="font-medium text-slate-200">{charge.description}</div>
+                                            <div className={`text-xs ${dueDateColor} flex items-center gap-1`}>
+                                                {dueDateLabel}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="font-bold text-slate-200">
+                                        ${Number(charge.amount).toLocaleString()}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* History */}
             <div className="glass-card border border-slate-700 overflow-hidden">
                 <div className="p-4 border-b border-slate-700 font-bold text-slate-200">Historial de Pagos</div>
                 <div className="divide-y divide-slate-700">
-                    {transactions.map(t => (
+                    {paidCharges.map(t => (
                         <div key={t.id} className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="p-2 bg-green-500/10 text-green-500 rounded-full">
@@ -125,38 +161,13 @@ export default function ClientFinance() {
                                 </div>
                             </div>
                             <div className="font-bold text-slate-200">
-                                -${t.amount.toLocaleString()}
+                                -${Number(t.amount).toLocaleString()}
                             </div>
                         </div>
                     ))}
-                    {transactions.length === 0 && <div className="p-6 text-center text-slate-500">No hay pagos registrados.</div>}
+                    {paidCharges.length === 0 && <div className="p-6 text-center text-slate-500">No hay pagos registrados.</div>}
                 </div>
             </div>
-
-            {/* Mock Payment Modal */}
-            {showPayModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                    <div className="glass-panel w-full max-w-sm p-6 animate-in zoom-in duration-300">
-                        <h3 className="text-xl font-bold text-white mb-4">Confirmar Pago</h3>
-                        <div className="bg-slate-900 p-4 rounded-lg mb-6 flex justify-between items-center">
-                            <span className="text-slate-400">Total a Pagar</span>
-                            <span className="text-2xl font-bold text-white">${amountDue.toLocaleString()}</span>
-                        </div>
-
-                        <p className="text-xs text-slate-500 mb-6 text-center">
-                            Pagando con Tarjeta terminada en •••• 4242 <br />
-                            (Simulación Segura)
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => setShowPayModal(false)} className="py-3 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-white transition-colors">Cancelar</button>
-                            <button onClick={handlePay} disabled={processing} className="btn-primary flex items-center justify-center">
-                                {processing ? <span className="animate-spin">⌛</span> : 'Confirmar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
