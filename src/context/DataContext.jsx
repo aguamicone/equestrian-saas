@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { createUserWithEmailAndPassword, signOut, deleteUser } from 'firebase/auth';
@@ -141,6 +141,125 @@ export function DataProvider({ children }) {
         notify(customMsg || 'Registro guardado exitosamente', 'success');
     };
 
+    const createServiceRequest = async ({ clientId, horseId, serviceId, serviceName, category, details, timeRequested, price, autoApprove }) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!clientId || !horseId || !serviceId) return { success: false, error: 'Datos incompletos.' };
+        
+        try {
+            const status = autoApprove ? 'pending_staff' : 'pending_admin';
+            
+            // Crear doc en REQUESTS
+            const requestRef = await addDoc(collection(db, 'REQUESTS'), {
+                tenantId: currentTenant.id,
+                clientId,
+                horseId,
+                type: serviceName,
+                serviceId,
+                category,
+                details: details || '',
+                timeRequested: timeRequested || '',
+                price: Number(price || 0),
+                assigneeId: null,
+                status,
+                autoApprove,
+                timestamp: new Date().toISOString(),
+                date: new Date().toISOString()
+            });
+            
+            // Notificar a TODOS los caballerizos del tenant
+            const staffList = tenantUsers.filter(u => u.role === 'staff');
+            const horse = horses.find(h => h.id === horseId);
+            const horseName = horse?.name || 'tu caballo';
+            
+            const notifPromises = staffList.map(staff => 
+                sendNotification(
+                    staff.uid,
+                    `Nueva solicitud: ${serviceName} para ${horseName}`,
+                    'service_request'
+                )
+            );
+            await Promise.all(notifPromises);
+            
+            notify('Solicitud de servicio enviada', 'success');
+            
+            return { success: true, requestId: requestRef.id };
+        } catch (error) {
+            console.error('Error al crear service request:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    const getActiveRequestsForClient = (clientId) => {
+        return requests
+            .filter(r => r.clientId === clientId && (r.status === 'pending_staff' || r.status === 'pending_admin' || r.status === 'in_progress'))
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    };
+
+    const cancelServiceRequest = async (requestId) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        
+        try {
+            const reqRef = doc(db, 'REQUESTS', requestId);
+            const reqSnap = await getDoc(reqRef);
+            if (!reqSnap.exists()) return { success: false, error: 'Solicitud no encontrada.' };
+            
+            const data = reqSnap.data();
+            
+            // Solo cancelar si está pendiente
+            if (data.status !== 'pending_staff' && data.status !== 'pending_admin') {
+                return { success: false, error: 'No se puede cancelar una solicitud ya en progreso.' };
+            }
+            
+            // Ownership
+            if (data.clientId !== currentUser.uid) {
+                return { success: false, error: 'No autorizado.' };
+            }
+            
+            await updateDoc(reqRef, {
+                status: 'cancelled',
+                cancelledAt: new Date().toISOString(),
+                cancelledBy: currentUser.uid
+            });
+            
+            notify('Solicitud cancelada', 'success');
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Error cancelar:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    const createSupplyRequest = async (requestData) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        
+        try {
+            // Crear doc en REQUESTS preservando comportamiento original
+            await addDoc(collection(db, 'REQUESTS'), {
+                tenantId: currentTenant.id,
+                date: new Date().toISOString(),
+                status: 'pending',
+                ...requestData
+            });
+            
+            // Notificar a admins (preservar comportamiento original)
+            // NOTA: 'ALL_ADMINS' sigue siendo string literal roto, pero es out of scope de D7.
+            // El bug de notificacion al admin para supply requests NO se corrige en D7 (no era objetivo).
+            // TR-30 candidato: corregir notificacion de supply requests al admin del tenant.
+            sendNotification('ALL_ADMINS', `Nuevo pedido de insumos de ${currentUser?.displayName || 'Personal'}`, 'info');
+            
+            notify('Pedido de insumos enviado', 'success');
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Error al crear supply request:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    // @deprecated D7: usar createServiceRequest (cliente solicita servicio) o createSupplyRequest (staff pide insumos).
+    // Aún usada por BoxReservation.jsx hasta que se migre a la web pública del haras (TR-29).
+    // Eliminar de DataContext.jsx cuando ningún call site la use.
     const addRequest = async (requestData) => {
         await addDoc(collection(db, 'REQUESTS'), {
             tenantId: currentTenant.id,
@@ -1125,7 +1244,7 @@ export function DataProvider({ children }) {
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
         notifications, events, healthRecords, healthBooklets,
         
-        addHorse, assignHorseToSpace, updateSpaceStatus, updateBanner, addLog, addRequest,
+        addHorse, assignHorseToSpace, updateSpaceStatus, updateBanner, addLog, addRequest, createServiceRequest, createSupplyRequest, cancelServiceRequest, getActiveRequestsForClient,
         addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,
         addInventoryItem, logStockUsage, updateStock, updateUserSalary, addAdvance, addEvent,
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,

@@ -3,10 +3,14 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { CheckSquare, Clock, Camera, FileText, ChevronRight, Inbox, User, MapPin } from 'lucide-react';
 import { USERS } from '../../services/mockFirebase';
+import { db } from '../../services/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useNotification } from '../../context/NotificationContext';
 
 export default function TaskManager() {
-    const { routines, requests, addLog, updateRow, spaces, horses, updateHorseLocation } = useData();
+    const { routines, requests, addLog, updateRow, spaces, horses, updateHorseLocation, sendNotification } = useData();
     const { currentUser } = useAuth();
+    const { notify } = useNotification();
     const [selectedTask, setSelectedTask] = useState(null);
     const [activeTab, setActiveTab] = useState('routines');
     
@@ -35,11 +39,45 @@ export default function TaskManager() {
     };
 
     // Initial Filter
-    const myRequests = requests.filter(r =>
-        (r.status === 'pending_staff' || r.status === 'pending') && (!r.assigneeId || r.assigneeId === currentUser.uid)
-    );
+    const myRequests = requests.filter(r => {
+        // Solicitudes pending sin asignar: las ven todos los caballerizos
+        const isPendingUnassigned = (r.status === 'pending_staff' || r.status === 'pending') && !r.assigneeId;
+        // Solicitudes asignadas al caballerizo actual (en cualquier estado activo)
+        const isMineActive = r.assigneeId === currentUser.uid && (r.status === 'pending_staff' || r.status === 'pending' || r.status === 'in_progress');
+        return isPendingUnassigned || isMineActive;
+    });
 
-    const handleTaskClick = (item, type) => {
+    const handleTaskClick = async (item, type) => {
+        if (type === 'request') {
+            const reqRef = doc(db, 'REQUESTS', item.id);
+            const reqSnap = await getDoc(reqRef);
+            
+            if (!reqSnap.exists()) {
+                notify('Esta solicitud ya no existe.', 'info');
+                return;
+            }
+            
+            const data = reqSnap.data();
+            
+            // Caso 1: solicitud libre (pending_staff sin asignar) -> tomarla
+            if (data.status === 'pending_staff' && !data.assigneeId) {
+                await updateDoc(reqRef, {
+                    status: 'in_progress',
+                    assigneeId: currentUser.uid,
+                    takenAt: new Date().toISOString()
+                });
+            }
+            // Caso 2: ya es mia (in_progress + assigneeId === currentUser.uid) -> continuar sin modificar Firestore
+            else if (data.status === 'in_progress' && data.assigneeId === currentUser.uid) {
+                // No-op: solo abrir modal para continuar trabajando la solicitud
+            }
+            // Caso 3: cualquier otra cosa (asignada a otro, completed, cancelled, etc) -> bloquear
+            else {
+                notify('Esta solicitud ya fue tomada por otro caballerizo o no está disponible.', 'info');
+                return;
+            }
+        }
+
         setSelectedTask({ ...item, _taskType: type });
         setObservation('');
         setPhoto(null);
@@ -54,7 +92,7 @@ export default function TaskManager() {
         }
     };
 
-    const completeTask = () => {
+    const completeTask = async () => {
         const isRequest = selectedTask._taskType === 'request';
 
         // Log the completed action
@@ -67,15 +105,13 @@ export default function TaskManager() {
 
         // Use update action if it's a request (mark as done)
         if (isRequest) {
-            // Need to update the request object in 'requests' collection
-            // MVP DataContext doesn't have explicit update for Requests yet, but we will add logic or simulate
-            // Since we don't have updateRequest in context yet, we'll assume updateRow works if collection matches
-            // Actually, let's just assume we log it. In a real app we'd update status to 'completed'.
-            // Simulating completion by filtering (in memory it won't vanish without real update, so let's try to update status locally if possible)
-            // Ideally: updateRequest(selectedTask.id, { status: 'completed' })
-            // For now, we will add an 'update' to dbActions manually or just 'hide' it. 
-            // Better: updateRow('REQUESTS', selectedTask.id, { status: 'completed' });
             updateRow('REQUESTS', selectedTask.id, { status: 'completed' });
+            
+            await sendNotification(
+                selectedTask.clientId,
+                `Tu solicitud de ${selectedTask.type} ya está lista`,
+                'service_completed'
+            );
         }
 
         setSelectedTask(null);

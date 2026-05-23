@@ -15,9 +15,10 @@ const ICON_MAP = {
 
 export default function ServiceRequest() {
     const { currentUser } = useAuth();
-    const { horses, servicesCatalog, addRequest } = useData();
+    const { horses, servicesCatalog, createServiceRequest, getActiveRequestsForClient, cancelServiceRequest } = useData();
 
     const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
+    const activeRequests = getActiveRequestsForClient(currentUser.uid);
 
     const [selectedHorseId, setSelectedHorseId] = useState(myHorses[0]?.id || '');
     const [selectedService, setSelectedService] = useState(null);
@@ -29,22 +30,16 @@ export default function ServiceRequest() {
         e.preventDefault();
         if (!selectedService || !selectedHorseId) return;
 
-        // AutoApprove: direct to staff. Otherwise: goes to admin.
-        const status = selectedService.autoApprove ? 'pending_staff' : 'pending_admin';
-
-        addRequest({
+        createServiceRequest({
             clientId: currentUser.uid,
             horseId: selectedHorseId,
-            type: selectedService.name,
+            serviceName: selectedService.name,
             serviceId: selectedService.id,
             category: selectedService.category,
             details: notes,
             timeRequested: time,
             price: selectedService.price,
-            assigneeId: null, // Pool general
-            status: status,
-            autoApprove: selectedService.autoApprove,
-            timestamp: new Date().toISOString()
+            autoApprove: selectedService.autoApprove
         });
         
         setSubmitted(true);
@@ -77,7 +72,7 @@ export default function ServiceRequest() {
                         >
                             <IconComp size={24} />
                             <span className="text-xs font-bold">{service.name}</span>
-                            {service.price > 0 && <span className="text-[10px] opacity-70">${service.price.toLocaleString()}</span>}
+                            {/* Ocultamos el precio visualmente por decisión D7 */}
                             {service.autoApprove && (
                                 <span className="absolute top-2 right-2 flex h-2 w-2">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -161,6 +156,43 @@ export default function ServiceRequest() {
                         </div>
                     )}
                 </form>
+            )}
+
+            {activeRequests.length > 0 && (
+                <div className="mt-8">
+                    <h3 className="text-lg font-bold text-slate-100 mb-4">Mis Solicitudes Activas</h3>
+                    <div className="space-y-3">
+                        {activeRequests.map(req => {
+                            const horse = horses.find(h => h.id === req.horseId);
+                            const canCancel = req.status === 'pending_staff' || req.status === 'pending_admin';
+                            return (
+                                <div key={req.id} className="glass-card p-4 flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-slate-200">{req.type}</span>
+                                        <span className="text-xs text-slate-400">
+                                            {horse?.name || 'Caballo desconocido'} {req.timeRequested && `• ${req.timeRequested}`}
+                                        </span>
+                                        <span className="text-xs mt-1">
+                                            {req.status === 'in_progress' ? (
+                                                <span className="text-gold-400">En progreso</span>
+                                            ) : (
+                                                <span className="text-slate-400">Pendiente</span>
+                                            )}
+                                        </span>
+                                    </div>
+                                    {canCancel && (
+                                        <button 
+                                            onClick={() => cancelServiceRequest(req.id)}
+                                            className="text-xs bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded border border-red-500/20 transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
         </div>
     );
