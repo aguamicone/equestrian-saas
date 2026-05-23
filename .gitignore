@@ -91,3 +91,13 @@ NOTAS_AGUSTIN_APPEND.md
 # D4 - Capturas y notas de trabajo
 capturas-d4/
 PRE_INV_D4.md
+
+# D5 - Capturas y temporales
+capturas-d5/
+PRE_INV_D5.md
+REPORTE_CIERRE_D2.md
+d5_db_dump.json
+d5_prompt.txt
+git.htm
+scripts/d5_*.js
+scripts/d5_*.py
