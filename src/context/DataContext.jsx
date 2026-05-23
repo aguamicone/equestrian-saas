@@ -296,7 +296,26 @@ export function DataProvider({ children }) {
     };
 
     const getFinanceForUser = (userId) => {
-        return finances.filter(f => f.clientId === userId || !f.clientId).sort((a, b) => new Date(b.date) - new Date(a.date));
+        return finances
+            .filter(f => f.clientId === userId)
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+    };
+
+    const getPendingChargesForUser = (userId) => {
+        return finances
+            .filter(f => f.clientId === userId && f.status === 'pending')
+            .sort((a, b) => {
+                if (!a.dueDate && !b.dueDate) return 0;
+                if (!a.dueDate) return 1;
+                if (!b.dueDate) return -1;
+                return new Date(a.dueDate) - new Date(b.dueDate);
+            });
+    };
+
+    const getPaidChargesForUser = (userId) => {
+        return finances
+            .filter(f => f.clientId === userId && f.status === 'paid')
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
     };
 
     const sendNotification = async (recipientId, message, type = 'info') => {
@@ -1110,7 +1129,7 @@ export function DataProvider({ children }) {
         addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,
         addInventoryItem, logStockUsage, updateStock, updateUserSalary, addAdvance, addEvent,
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
-        getLogsForHorse, getFinanceForUser,
+        getLogsForHorse, getFinanceForUser, getPendingChargesForUser, getPaidChargesForUser,
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
         assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges,
