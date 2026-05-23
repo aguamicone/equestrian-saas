@@ -83,10 +83,10 @@ export default function ClientLayout() {
                     <PlusCircle size={24} />
                     <span className="text-[10px]">Solicitar</span>
                 </button>
-                <button onClick={() => navigate('/client/reserve')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-gold-500 focus:text-gold-500">
+                {/* <button onClick={() => navigate('/client/reserve')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-gold-500 focus:text-gold-500">
                     <Ticket size={24} />
                     <span className="text-[10px]">Reservar</span>
-                </button>
+                </button> */}
             </nav>
         </div>
     );
