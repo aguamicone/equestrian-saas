@@ -17,7 +17,7 @@ const COMMON_SUPPLIES = [
 ];
 
 export default function StaffSupplies() {
-    const { addRequest, inventory, logStockUsage } = useData();
+    const { createSupplyRequest, inventory, logStockUsage } = useData();
     const { currentUser } = useAuth();
 
     const [mode, setMode] = useState('use'); // 'use' (Consume) or 'request' (Order)
@@ -50,7 +50,7 @@ export default function StaffSupplies() {
         } else {
             // Create Request
             const item = selectedItemId ? inventory.find(i => i.id === selectedItemId)?.name : customItem;
-            addRequest({
+            createSupplyRequest({
                 clientId: currentUser.uid,
                 type: 'supply_order',
                 details: `Pedido de Insumo: ${item} x${quantity}`,
