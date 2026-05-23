@@ -15,12 +15,20 @@ export default function ActivityLog() {
 
     // Filter Logic
     const filteredLogs = logs.filter(log => {
-        const matchesSearch = log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.staffName.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = filterType === 'all' ? true : log.type.includes(filterType);
-
+        const details = log.details || '';
+        const staffName = log.staffName || log.userName || 'Sistema';
+        const type = log.type || '';
+        
+        const matchesSearch = details.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            staffName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = filterType === 'all' ? true : type.includes(filterType);
+        
         return matchesSearch && matchesType;
-    }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }).sort((a, b) => {
+        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+        return dateB - dateA;
+    });
 
     return (
         <div className="pb-20">
@@ -66,24 +74,26 @@ export default function ActivityLog() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
-                            {filteredLogs.map(log => (
+                            {filteredLogs.map(log => {
+                                const logDate = log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp || Date.now());
+                                return (
                                 <tr key={log.id} className="hover:bg-slate-700/50 transition-colors">
                                     <td className="p-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2 text-slate-300">
                                             <Calendar size={14} className="text-slate-500" />
-                                            {new Date(log.timestamp).toLocaleDateString()}
-                                            <span className="text-xs text-slate-500 ml-1">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            {logDate.toLocaleDateString()}
+                                            <span className="text-xs text-slate-500 ml-1">{logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
                                     </td>
                                     <td className="p-4">
                                         <div className="flex items-center gap-2 text-slate-200 font-medium">
                                             <div className="p-1 bg-slate-700 rounded-full"><User size={12} /></div>
-                                            {log.staffName}
+                                            {log.staffName || log.userName || 'Sistema'}
                                         </div>
                                     </td>
                                     <td className="p-4">
-                                        <div className="text-slate-300">{log.details}</div>
-                                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">{log.type}</div>
+                                        <div className="text-slate-300">{log.details || '-'}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">{log.type || 'general'}</div>
                                     </td>
                                     <td className="p-4 text-slate-300">
                                         {log.horseId ? (
@@ -93,7 +103,8 @@ export default function ActivityLog() {
                                         ) : '-'}
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                             {filteredLogs.length === 0 && (
                                 <tr>
                                     <td colSpan="4" className="p-8 text-center text-slate-500">
