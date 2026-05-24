@@ -57,13 +57,23 @@ export function DataProvider({ children }) {
             return;
         }
 
+        if (!currentUser) {
+            setSpaces([]); setHorses([]); setFinances([]); setLogs([]); setRequests([]);
+            setRoutines([]); setPricingPlans([]); setShifts([]); setTenantUsers([]);
+            setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
+            setEvents([]); setHealthRecords([]); setHealthBooklets([]);
+            setEquipmentItems([]);
+            setNotifications([]);
+            return;
+        }
+
         setTenantSettings(currentTenant);
 
-        const tenantQuery = (coll) => query(collection(db, coll), where("tenantId", "==", currentTenant.id));
         const unsubs = [];
 
-        const subscribe = (collName, setFn) => {
-            return onSnapshot(tenantQuery(collName), snap => {
+        const subscribe = (collName, setFn, extraConstraints = []) => {
+            const q = query(collection(db, collName), where("tenantId", "==", currentTenant.id), ...extraConstraints);
+            return onSnapshot(q, snap => {
                 setFn(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
             });
         };
@@ -79,7 +89,15 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('INVENTORY', setInventory));
         unsubs.push(subscribe('INVENTORY_LOGS', setInventoryLogs));
         unsubs.push(subscribe('SERVICES_CATALOG', setServicesCatalog));
-        unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances));
+        
+        if (currentUser.role === 'staff') {
+            unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances, [where("staffId", "==", currentUser.uid)]));
+        } else if (currentUser.role !== 'client') {
+            // tenantAdmin, superAdmin u otros: lee todo
+            unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances));
+        }
+        // Si role === 'client': NO suscribir (skip)
+
         unsubs.push(subscribe('EVENTS', setEvents));
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
