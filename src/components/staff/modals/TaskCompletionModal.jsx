@@ -92,7 +92,7 @@ export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveReq
 
       await addLog({
         type: isRequest ? 'request_completion' : 'routine_completion',
-        details: `${isRequest ? 'Solicitud' : 'Rutina'} completada: ${task.type || task.name}${observation ? \`. Nota: \${observation}\` : ''}`,
+        details: `${isRequest ? 'Solicitud' : 'Rutina'} completada: ${task.type || task.name}${observation ? `. Nota: ${observation}` : ''}`,
         horseId: task.horseId || null,
         evidence: photo,
       });
