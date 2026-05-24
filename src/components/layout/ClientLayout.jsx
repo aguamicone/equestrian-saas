@@ -45,7 +45,7 @@ export default function ClientLayout() {
 
             {/* Slide-out Menu */}
             {menuOpen && (
-                <div className="fixed inset-0 z-50 bg-ink-900/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
+                <div className="fixed inset-0 z-[60] bg-ink-900/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
                     <div className="absolute right-0 top-0 bottom-0 w-72 bg-white rounded-none p-0 shadow-xl border-l border-ink-200 flex flex-col animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
                         
                         {/* Sidebar Header */}
