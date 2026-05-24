@@ -1,0 +1,447 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/USERS/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getUserData().role == 'superAdmin';
+    }
+
+    function belongsToTenant(tenantId) {
+      return isSignedIn() && (
+        getUserData().tenantId == tenantId ||
+        (getUserData().tenantIds != null && getUserData().tenantIds.hasAny([tenantId]))
+      );
+    }
+
+    function isTenantAdmin(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'tenantAdmin';
+    }
+
+    function isStaff(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'staff';
+    }
+
+    function isClient(tenantId) {
+      return belongsToTenant(tenantId) && getUserData().role == 'client';
+    }
+
+    // Helper para CREATE: el nuevo doc debe tener el tenantId
+    // del usuario que lo está creando.
+    function isCreatingForMyTenant() {
+      return isSignedIn() && belongsToTenant(request.resource.data.tenantId);
+    }
+
+    // Helper para UPDATE: tanto el doc viejo como el nuevo deben
+    // pertenecer a mi tenant. Esto previene "robarse" un doc a otro tenant.
+    function isUpdatingMyTenantDoc() {
+      return isSignedIn()
+        && belongsToTenant(resource.data.tenantId)
+        && belongsToTenant(request.resource.data.tenantId);
+    }
+
+    // Helper para DELETE: solo chequea el doc existente.
+    function isDeletingMyTenantDoc() {
+      return isSignedIn() && belongsToTenant(resource.data.tenantId);
+    }
+
+
+    // ============================================================
+    // COLLECTION RULES
+    // ============================================================
+
+    // ----- TENANTS -----
+    // Lectura pública (necesaria para resolver subdominios)
+    // Escritura: solo superAdmin
+    match /TENANTS/{tenantId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ----- USERS -----
+    // Lectura: el propio usuario, superAdmin, o cualquier miembro del mismo tenant
+    // Create: superAdmin, o tenantAdmin creando un user de su mismo tenant
+    // Update: el propio usuario (perfil), o tenantAdmin/superAdmin
+    // Delete: solo tenantAdmin o superAdmin (no el propio usuario — evita auto-delete accidental)
+    match /USERS/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isSuperAdmin() ||
+        belongsToTenant(resource.data.tenantId)
+      );
+      allow create: if isSuperAdmin() || (
+        isSignedIn() &&
+        getUserData().role == 'tenantAdmin' &&
+        belongsToTenant(request.resource.data.tenantId)
+      );
+      allow update: if isSuperAdmin() ||
+        (isSignedIn() && request.auth.uid == userId) ||
+        (isSignedIn() && getUserData().role == 'tenantAdmin' && belongsToTenant(resource.data.tenantId));
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() &&
+        getUserData().role == 'tenantAdmin' &&
+        belongsToTenant(resource.data.tenantId)
+      );
+    }
+
+    // ----- SPACES (caballerizas / boxes) -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update: tenantAdmin o staff (staff puede cambiar estado del box)
+    // Delete: solo tenantAdmin
+    match /SPACES/{spaceId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- HORSES -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update/Delete: solo tenantAdmin
+    match /HORSES/{horseId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- FINANCES -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update: solo tenantAdmin
+    // Delete: NADIE (excepto superAdmin para emergencias). Para anular un pago,
+    //         se debe crear una transacción que lo compense o marcarlo como anulado.
+    //         Esto mantiene auditoría completa.
+    match /FINANCES/{financeId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // ----- INVENTORY -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update: tenantAdmin o staff (staff puede actualizar stock al consumir)
+    // Delete: solo tenantAdmin
+    match /INVENTORY/{itemId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- INVENTORY_LOGS -----
+    // Read: superAdmin o miembros del tenant
+    // Create: tenantAdmin o staff (cualquiera puede registrar uso)
+    // Update/Delete: NADIE (logs inmutables — son evidencia de qué consumió cada uno)
+    match /INVENTORY_LOGS/{logId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ----- ROUTINES -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update: tenantAdmin o staff (staff puede marcar como completada)
+    // Delete: solo tenantAdmin
+    match /ROUTINES/{routineId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- NOTIFICATIONS -----
+    // Read: el destinatario, o si está dirigida a 'ALL_ADMINS' y el user es admin
+    // Create: cualquier usuario autenticado (la app genera notificaciones desde varios puntos)
+    // Update: el destinatario (marcar como leída)
+    // Delete: solo tenantAdmin o superAdmin
+    match /NOTIFICATIONS/{notifId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.recipientId ||
+        (resource.data.recipientId == 'ALL_ADMINS' && getUserData().role == 'tenantAdmin') ||
+        isSuperAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.recipientId ||
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- EVENTS -----
+    // Read: superAdmin o miembros del tenant
+    // Create: tenantAdmin o staff
+    // Update: tenantAdmin/staff para edición general, OR cliente para confirmar asistencia
+    // Delete: solo tenantAdmin
+    match /EVENTS/{eventId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() ||
+        (isUpdatingMyTenantDoc() &&
+          (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')) ||
+        isClient(resource.data.tenantId); // cliente puede confirmar asistencia
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- REQUESTS (solicitudes de clientes y pedidos de staff) -----
+    // Read: superAdmin, miembros del tenant
+    // Create: cualquier miembro del tenant (cliente pide servicio, staff pide insumo, etc.)
+    // Update: tenantAdmin o staff (cambiar status, asignar, etc.)
+    // Delete: solo tenantAdmin
+    match /REQUESTS/{requestId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || isCreatingForMyTenant();
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() && (
+          // Admin y staff pueden actualizar siempre
+          getUserData().role == 'tenantAdmin' || 
+          getUserData().role == 'staff' ||
+          // Cliente puede cancelar SU propia solicitud SOLO si está pending
+          (
+              request.auth.uid == resource.data.clientId &&
+              (resource.data.status == 'pending_staff' || resource.data.status == 'pending_admin') &&
+              request.resource.data.status == 'cancelled'
+          )
+        )
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- EQUIPMENT_ITEMS (D8) -----
+    // Read: todos los del tenant (admin observa, cliente ve los suyos vía filtro en frontend)
+    // Create: usuario autenticado del tenant SOLO con ownerId == su propio uid
+    // Update: solo el dueño Y NO puede cambiar ownerId ni tenantId
+    // Delete: solo el dueño
+    match /EQUIPMENT_ITEMS/{itemId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() && 
+        request.resource.data.ownerId == request.auth.uid
+      );
+      
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() && 
+        resource.data.ownerId == request.auth.uid &&
+        request.resource.data.ownerId == resource.data.ownerId
+      );
+      
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() && 
+        resource.data.ownerId == request.auth.uid
+      );
+    }
+
+    // ----- PRICING_PLANS -----
+    // Read: superAdmin o miembros del tenant (clientes necesitan ver precios)
+    // Create/Update/Delete: solo tenantAdmin
+    match /PRICING_PLANS/{planId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- SHIFTS (turnos del staff) -----
+    // Read: superAdmin o miembros del tenant (clientes ven horarios en ClientStaffView)
+    // Create/Update/Delete: solo tenantAdmin
+    match /SHIFTS/{shiftId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- SERVICES_CATALOG -----
+    // Read: superAdmin o miembros del tenant (clientes y staff ven el catálogo)
+    // Create/Update/Delete: solo tenantAdmin
+    match /SERVICES_CATALOG/{serviceId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
+    // ----- LOGS (auditoría y registro de actividad) -----
+    // Read: superAdmin o miembros del tenant 
+    //       (admins, staff y clientes leen logs según contexto)
+    // Create: cualquier miembro del tenant 
+    //         (staff registra tareas, client registra solicitudes, admin registra acciones)
+    // Update/Delete: NADIE (logs inmutables para auditoría)
+    match /LOGS/{logId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || isCreatingForMyTenant();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ----- PAYROLL_ADVANCES (adelantos de sueldo del staff) -----
+    // Read: tenantAdmin (todos los del tenant), o el staff afectado 
+    //       (solo los suyos), o superAdmin
+    // Create: solo tenantAdmin
+    // Update: solo tenantAdmin (para feature futura de confirmación 
+    //         del staff sobre su propio adelanto)
+    // Delete: NADIE (excepto superAdmin para emergencias)
+    match /PAYROLL_ADVANCES/{advanceId} {
+      allow read: if isSuperAdmin() || (
+        isSignedIn() && 
+        belongsToTenant(resource.data.tenantId) &&
+        (
+          getUserData().role == 'tenantAdmin' ||
+          request.auth.uid == resource.data.staffId
+        )
+      );
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ----- HEALTH_RECORDS & HORSE_HEALTH_BOOKLETS -----
+    // Read: superAdmin o miembros del tenant
+    // Create/Update/Delete: tenantAdmin o staff (los clientes solo leen)
+    match /HEALTH_RECORDS/{recordId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+    }
+
+    match /HORSE_HEALTH_BOOKLETS/{bookletId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+    }
+
+    // ============================================================
+    // CATCH-ALL FINAL
+    // Solo superAdmin puede acceder a colecciones no listadas arriba.
+    // Esto protege contra escritura accidental a colecciones nuevas
+    // antes de que les agreguemos rules explícitas.
+    // ============================================================
+    match /{path=**} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
