@@ -74,20 +74,6 @@ PRE_INV_D3.md
 # Notas y reportes provisionales
 NOTAS_AGUSTIN_APPEND.md
 
-# D3 - Capturas
-capturas-d3/
-
-# Scripts de testing y validacion (no pertenecen al repo)
-scripts/*.cjs
-scripts/*.png
-scripts/*.html
-
-# Pre-investigacion de tandas (notas de trabajo, no parte del producto)
-PRE_INV_D3.md
-
-# Notas y reportes provisionales
-NOTAS_AGUSTIN_APPEND.md
-
 # D4 - Capturas y notas de trabajo
 capturas-d4/
 PRE_INV_D4.md
@@ -111,3 +97,10 @@ scripts/test_*.js
 scripts/test_*.mjs
 scripts/check_*.js
 scripts/check_*.mjs
+
+# Antigravity session temp files (mantener fuera de repo)
+scripts/pr_body*.txt
+scripts/create_pr*.sh
+NOCHE_*.md
+INV_V2_*.md
+PRE_INV_*.md
