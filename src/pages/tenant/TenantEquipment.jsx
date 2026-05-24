@@ -155,6 +155,11 @@ export default function TenantEquipment() {
 // PESTAÑA 1: Todos los Equipos
 // ==========================================
 function TabTodos({ tenantUsers, equipmentItems }) {
+    // TR-43 (won't fix - decision de producto 24-25 may 2026):
+    // Estos estados de filtros viven dentro de TabTodos a proposito.
+    // React los resetea cuando el usuario cambia a la sub-tab "Items Caballeriza" y vuelve.
+    // Comportamiento intencional: cambio de contexto = reset de filtros.
+    // NO levantar al componente padre TenantEquipment.
     const [filterOwner, setFilterOwner] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterCondition, setFilterCondition] = useState('');
