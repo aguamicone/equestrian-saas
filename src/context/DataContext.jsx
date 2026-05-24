@@ -80,7 +80,11 @@ export function DataProvider({ children }) {
 
         unsubs.push(subscribe('SPACES', setSpaces));
         unsubs.push(subscribe('HORSES', setHorses));
-        unsubs.push(subscribe('FINANCES', setFinances));
+        if (currentUser?.role === 'client') {
+            unsubs.push(subscribe('FINANCES', setFinances, [where('clientId', '==', currentUser.uid)]));
+        } else {
+            unsubs.push(subscribe('FINANCES', setFinances));
+        }
         unsubs.push(subscribe('LOGS', setLogs));
         unsubs.push(subscribe('REQUESTS', setRequests));
         unsubs.push(subscribe('ROUTINES', setRoutines));
