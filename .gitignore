@@ -104,3 +104,6 @@ scripts/create_pr*.sh
 NOCHE_*.md
 INV_V2_*.md
 PRE_INV_*.md
+
+# Local archive (archivos locales de sesiones pasadas, fuera del repo)
+local-archive/
