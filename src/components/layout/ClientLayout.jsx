@@ -1,7 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users } from 'lucide-react';
+import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users, Briefcase } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 import { useState } from 'react';
 
@@ -50,6 +50,9 @@ export default function ClientLayout() {
                             </button>
                             <button onClick={() => navigate('/client/staff')} className="flex items-center gap-3 text-slate-300 hover:text-white w-full">
                                 <Users size={18} /> Personal de Turno
+                            </button>
+                            <button onClick={() => { navigate('/client/equipment'); setMenuOpen(false); }} className="flex items-center gap-3 text-slate-300 hover:text-white w-full">
+                                <Briefcase size={18} /> Equipos
                             </button>
                             <button onClick={() => navigate('/client/events')} className="flex items-center gap-3 text-slate-300 hover:text-white w-full">
                                 <Ticket size={18} /> Eventos

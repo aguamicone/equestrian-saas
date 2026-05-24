@@ -2,7 +2,7 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LogOut, LayoutDashboard, Ticket, Users, DollarSign, Settings,
-  ClipboardList, Syringe, Activity, ShoppingBag, ChevronRight
+  ClipboardList, Syringe, Activity, ShoppingBag, ChevronRight, Briefcase
 } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 
@@ -37,6 +37,7 @@ export default function TenantAdminLayout() {
       items: [
         { to: '/tenant-admin/finance',          icon: DollarSign, label: 'Finanzas' },
         { to: '/tenant-admin/finance/debtors',  icon: ChevronRight, label: 'Deudores', sub: true },
+        { to: '/tenant-admin/equipment',        icon: Briefcase,  label: 'Inventario Equipos' },
         { to: '/tenant-admin/events',           icon: Ticket,     label: 'Eventos' },
         { to: '/tenant-admin/health',           icon: Syringe,    label: 'Sanidad' },
         { to: '/tenant-admin/activity',         icon: Activity,   label: 'Actividad' },
