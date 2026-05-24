@@ -37,6 +37,7 @@ export function DataProvider({ children }) {
     const [healthRecords, setHealthRecords] = useState([]);
     const [healthBooklets, setHealthBooklets] = useState([]);
     const [tenantSettings, setTenantSettings] = useState(null);
+    const [equipmentItems, setEquipmentItems] = useState([]);
 
     // Initial Load & Real-time Subscription via onSnapshot
     useEffect(() => {
@@ -46,6 +47,7 @@ export function DataProvider({ children }) {
             setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
             setEvents([]); setHealthRecords([]); setHealthBooklets([]);
             setTenantSettings(null);
+            setEquipmentItems([]);
             setNotifications([]);
             return;
         }
@@ -82,6 +84,7 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
         unsubs.push(subscribe('USERS', setTenantUsers));
+        unsubs.push(subscribe('EQUIPMENT_ITEMS', setEquipmentItems));
 
         if (currentUser) {
             // Notificaciones filtradas server-side para respetar Firestore rules
@@ -255,6 +258,119 @@ export function DataProvider({ children }) {
             console.error('Error al crear supply request:', error);
             return { success: false, error: error.code || error.message };
         }
+    };
+
+    // ============ EQUIPMENT_ITEMS HELPERS (D8) ============
+
+    const createEquipmentItem = async ({ name, type, brand, condition, usage, notes }) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        if (!name || !type || !condition || !usage) return { success: false, error: 'Campos obligatorios faltantes.' };
+        
+        try {
+            const itemRef = await addDoc(collection(db, 'EQUIPMENT_ITEMS'), {
+                tenantId: currentTenant.id,
+                ownerId: currentUser.uid,
+                name: name.trim(),
+                type,
+                brand: brand?.trim() || null,
+                condition,
+                usage,
+                photoUrl: null,    // RESERVADO TR-37
+                photoPath: null,   // RESERVADO TR-37
+                notes: notes?.trim() || null,
+                createdAt: serverTimestamp(),
+                createdBy: currentUser.uid,
+                updatedAt: null
+            });
+            
+            notify('Item agregado', 'success');
+            return { success: true, itemId: itemRef.id };
+        } catch (error) {
+            console.error('Error al crear equipment item:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    const updateEquipmentItem = async (itemId, updates) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        
+        try {
+            const itemRef = doc(db, 'EQUIPMENT_ITEMS', itemId);
+            const itemSnap = await getDoc(itemRef);
+            if (!itemSnap.exists()) return { success: false, error: 'Item no encontrado.' };
+            
+            const data = itemSnap.data();
+            if (data.ownerId !== currentUser.uid) return { success: false, error: 'No autorizado.' };
+            
+            // Sanear updates: ownerId y tenantId NO se pueden cambiar
+            const safeUpdates = { ...updates };
+            delete safeUpdates.ownerId;
+            delete safeUpdates.tenantId;
+            delete safeUpdates.createdAt;
+            delete safeUpdates.createdBy;
+            
+            // Trim strings opcionales
+            if (safeUpdates.brand !== undefined) safeUpdates.brand = safeUpdates.brand?.trim() || null;
+            if (safeUpdates.notes !== undefined) safeUpdates.notes = safeUpdates.notes?.trim() || null;
+            if (safeUpdates.name !== undefined) safeUpdates.name = safeUpdates.name.trim();
+            
+            safeUpdates.updatedAt = serverTimestamp();
+            
+            await updateDoc(itemRef, safeUpdates);
+            notify('Item actualizado', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error al actualizar equipment item:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    const deleteEquipmentItem = async (itemId) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        
+        try {
+            const itemRef = doc(db, 'EQUIPMENT_ITEMS', itemId);
+            const itemSnap = await getDoc(itemRef);
+            if (!itemSnap.exists()) return { success: false, error: 'Item no encontrado.' };
+            
+            const data = itemSnap.data();
+            if (data.ownerId !== currentUser.uid) return { success: false, error: 'No autorizado.' };
+            
+            // NOTA: en D8 no hay foto que borrar. Cuando se implemente TR-37, agregar:
+            // if (data.photoPath) { await deleteObject(ref(storage, data.photoPath)); }
+            
+            await deleteDoc(itemRef);
+            notify('Item eliminado', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error al eliminar equipment item:', error);
+            return { success: false, error: error.code || error.message };
+        }
+    };
+
+    // Lectura: items del cliente actual
+    const getMyEquipmentItems = () => {
+        if (!currentUser?.uid) return [];
+        return equipmentItems
+            .filter(item => item.ownerId === currentUser.uid)
+            .sort((a, b) => {
+                const timeA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
+                const timeB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
+                return timeB - timeA;
+            });
+    };
+
+    // Lectura: items del haras (todos los items donde ownerId esté en lista de uids de tenantAdmins del tenant)
+    const getEquipmentItemsByTenantAdmins = () => {
+        const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid);
+        return equipmentItems
+            .filter(item => adminUids.includes(item.ownerId))
+            .sort((a, b) => {
+                const timeA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
+                const timeB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
+                return timeB - timeA;
+            });
     };
 
     // @deprecated D7: usar createServiceRequest (cliente solicita servicio) o createSupplyRequest (staff pide insumos).
@@ -1242,7 +1358,10 @@ export function DataProvider({ children }) {
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
-        notifications, events, healthRecords, healthBooklets,
+        notifications, events, healthRecords, healthBooklets, equipmentItems,
+        
+        createEquipmentItem, updateEquipmentItem, deleteEquipmentItem,
+        getMyEquipmentItems, getEquipmentItemsByTenantAdmins,
         
         addHorse, assignHorseToSpace, updateSpaceStatus, updateBanner, addLog, addRequest, createServiceRequest, createSupplyRequest, cancelServiceRequest, getActiveRequestsForClient,
         addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,

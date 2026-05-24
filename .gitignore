@@ -101,3 +101,13 @@ d5_prompt.txt
 git.htm
 scripts/d5_*.js
 scripts/d5_*.py
+
+# Antigravity temp files (TR-36)
+temp_diff*.txt
+temp_diff*
+scripts/commit_*.bat
+scripts/check_*.cjs
+scripts/test_*.js
+scripts/test_*.mjs
+scripts/check_*.js
+scripts/check_*.mjs
