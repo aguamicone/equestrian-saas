@@ -135,13 +135,18 @@ service cloud.firestore {
     }
 
     // ----- FINANCES -----
-    // Read: superAdmin o miembros del tenant
+    // Read: admin y staff (todos del tenant), cliente (solo sus propios docs)
     // Create/Update: solo tenantAdmin
     // Delete: NADIE (excepto superAdmin para emergencias). Para anular un pago,
     //         se debe crear una transacción que lo compense o marcarlo como anulado.
     //         Esto mantiene auditoría completa.
     match /FINANCES/{financeId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isTenantAdmin(resource.data.tenantId) ||
+        isStaff(resource.data.tenantId) ||
+        (isClient(resource.data.tenantId) && resource.data.clientId == request.auth.uid)
+      );
       allow create: if isSuperAdmin() || (
         isCreatingForMyTenant() &&
         getUserData().role == 'tenantAdmin'
@@ -250,12 +255,17 @@ service cloud.firestore {
     }
 
     // ----- REQUESTS (solicitudes de clientes y pedidos de staff) -----
-    // Read: superAdmin, miembros del tenant
+    // Read: admin y staff (todos del tenant), cliente (solo sus propias requests)
     // Create: cualquier miembro del tenant (cliente pide servicio, staff pide insumo, etc.)
     // Update: tenantAdmin o staff (cambiar status, asignar, etc.)
     // Delete: solo tenantAdmin
     match /REQUESTS/{requestId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isTenantAdmin(resource.data.tenantId) ||
+        isStaff(resource.data.tenantId) ||
+        (isClient(resource.data.tenantId) && resource.data.clientId == request.auth.uid)
+      );
       allow create: if isSuperAdmin() || isCreatingForMyTenant();
       allow update: if isSuperAdmin() || (
         isUpdatingMyTenantDoc() && (
