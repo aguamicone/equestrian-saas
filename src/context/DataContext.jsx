@@ -86,7 +86,11 @@ export function DataProvider({ children }) {
             unsubs.push(subscribe('FINANCES', setFinances));
         }
         unsubs.push(subscribe('LOGS', setLogs));
-        unsubs.push(subscribe('REQUESTS', setRequests));
+        if (currentUser?.role === 'client') {
+            unsubs.push(subscribe('REQUESTS', setRequests, [where('clientId', '==', currentUser.uid)]));
+        } else {
+            unsubs.push(subscribe('REQUESTS', setRequests));
+        }
         unsubs.push(subscribe('ROUTINES', setRoutines));
         unsubs.push(subscribe('PRICING_PLANS', setPricingPlans));
         unsubs.push(subscribe('SHIFTS', setShifts));
