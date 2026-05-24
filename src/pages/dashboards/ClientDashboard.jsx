@@ -28,62 +28,59 @@ export default function ClientDashboard() {
     const weeklyJumps = thisWeekLogs.filter(l => l.type === 'show_jumping_log').length;
 
     const locColors = {
-        box: 'bg-slate-700 text-slate-300',
-        piquete: 'bg-green-500/20 text-green-400 border border-green-500/30',
-        circular: 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+        box: 'bg-ink-100 text-ink-700 border border-ink-200',
+        piquete: 'bg-success-50 text-success-700 border border-success-200',
+        circular: 'bg-gold-50 text-gold-700 border border-gold-200'
     };
 
     return (
         <div className="space-y-6 pb-20">
 
-            {/* Premium Header Banner (Glassmorphism & Gold/Dark Gray) */}
-            <div className="w-full relative rounded-3xl overflow-hidden shadow-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1598974357801-cbca100b6e3f?auto=format&fit=crop&w=1200')] opacity-20 bg-cover bg-center mix-blend-luminosity"></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
-                
+            {/* Premium Header Banner - Option A (Cielo y Campo) */}
+            <div className="w-full relative rounded-3xl overflow-hidden shadow-card border border-ink-100 bg-gradient-to-br from-primary-50 via-white to-sky-50">
                 <div className="relative z-10 p-6 sm:p-8 flex flex-col items-start justify-end min-h-[160px]">
-                    <span className="px-3 py-1 bg-gold-500/20 text-gold-500 border border-gold-500/30 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3 backdrop-blur-md">
+                    <span className="px-3 py-1 bg-primary-100 text-primary-700 border border-primary-200 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3">
                         Mí Dashboard
                     </span>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-md leading-tight">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-ink-800 drop-shadow-sm leading-tight">
                         Hola, {currentUser?.displayName?.split(' ')[0] || 'Jinete'}
                     </h2>
-                    <p className="text-sm text-slate-300 mt-1 font-medium">{tenantSettings?.name || 'Club Ecuestre'}</p>
+                    <p className="text-sm text-ink-500 mt-1 font-medium">{tenantSettings?.name || 'Club Ecuestre'}</p>
                 </div>
             </div>
 
             {/* Weekly Metrics */}
             <div>
                 <div className="flex justify-between items-end mb-3 px-1">
-                    <h3 className="text-slate-100 font-bold text-lg flex items-center gap-2">
-                        <Activity size={18} className="text-gold-500"/> Resumen Semanal
+                    <h3 className="text-ink-800 font-bold text-lg flex items-center gap-2">
+                        <Activity size={18} className="text-primary-600"/> Resumen Semanal
                     </h3>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Lunes a Domingo</span>
+                    <span className="text-xs font-bold text-ink-400 uppercase tracking-widest">Lunes a Domingo</span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all"></div>
+                    <div className="bg-white border border-ink-200 rounded-2xl p-4 flex flex-col justify-between shadow-card relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary-100/50 rounded-full blur-xl transition-all"></div>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 relative z-10">
                                 <Swords size={16}/>
                             </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Entrenos</span>
+                            <span className="text-xs font-bold text-ink-400 uppercase tracking-wider relative z-10">Entrenos</span>
                         </div>
-                        <div className="text-3xl font-black text-white">{weeklyTrainings}</div>
-                        <div className="text-[10px] font-medium text-slate-500 mt-1">Registrados esta semana</div>
+                        <div className="text-3xl font-black text-ink-800 relative z-10">{weeklyTrainings}</div>
+                        <div className="text-[10px] font-medium text-ink-400 mt-1 relative z-10">Registrados esta semana</div>
                     </div>
 
-                    <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
-                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-gold-500/10 rounded-full blur-xl group-hover:bg-gold-500/20 transition-all"></div>
+                    <div className="bg-white border border-ink-200 rounded-2xl p-4 flex flex-col justify-between shadow-card relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-gold-100/50 rounded-full blur-xl transition-all"></div>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-full bg-gold-500/20 flex items-center justify-center text-gold-500">
+                            <div className="w-8 h-8 rounded-full bg-gold-100 flex items-center justify-center text-gold-600 relative z-10">
                                 <Medal size={16}/>
                             </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Concursos</span>
+                            <span className="text-xs font-bold text-ink-400 uppercase tracking-wider relative z-10">Concursos</span>
                         </div>
-                        <div className="text-3xl font-black text-white">{weeklyJumps}</div>
-                        <div className="text-[10px] font-medium text-slate-500 mt-1">Participaciones recientes</div>
+                        <div className="text-3xl font-black text-ink-800 relative z-10">{weeklyJumps}</div>
+                        <div className="text-[10px] font-medium text-ink-400 mt-1 relative z-10">Participaciones recientes</div>
                     </div>
                 </div>
             </div>
@@ -91,17 +88,20 @@ export default function ClientDashboard() {
             {/* Live Horses Radar */}
             <div>
                 <div className="flex justify-between items-end mb-3 px-1">
-                    <h3 className="text-slate-100 font-bold text-lg flex items-center gap-2">
-                        <MapPin size={18} className="text-gold-500"/> Mis Caballos
+                    <h3 className="text-ink-800 font-bold text-lg flex items-center gap-2">
+                        <MapPin size={18} className="text-primary-600"/> Mis Caballos
                     </h3>
-                    <Link to="/client/horses" className="text-xs font-bold text-gold-500 hover:text-gold-400 uppercase tracking-widest flex items-center">
+                    <Link to="/client/horses" className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center">
                         Ver Todos <ChevronRight size={14}/>
                     </Link>
                 </div>
 
                 {myHorses.length === 0 ? (
-                    <div className="bg-slate-800/50 p-6 rounded-2xl border border-dashed border-slate-700 text-center">
-                        <p className="text-slate-400 font-medium">No tienes caballos asignados a tu cuenta.</p>
+                    <div className="bg-white border-2 border-dashed border-ink-200 rounded-2xl p-8 text-center shadow-sm">
+                        <div className="w-12 h-12 rounded-full bg-ink-50 text-ink-400 flex items-center justify-center mx-auto mb-3">
+                            <MapPin size={24} />
+                        </div>
+                        <p className="text-ink-500 font-medium">No tienes caballos asignados a tu cuenta.</p>
                     </div>
                 ) : (
                     <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
@@ -109,13 +109,13 @@ export default function ClientDashboard() {
                             const loc = horse.location || 'box';
                             return (
                                 <Link key={horse.id} to={`/client/horses/${horse.id}`} className="shrink-0 w-[240px] group">
-                                    <div className="bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700 p-3 h-full shadow-lg relative overflow-hidden hover:border-gold-500/50 transition-all duration-300 hover:-translate-y-1">
+                                    <div className="bg-white rounded-2xl border border-ink-200 p-3 h-full shadow-card relative overflow-hidden hover:border-primary-300 transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
                                         
                                         {/* Colored Glow based on location */}
-                                        <div className={`absolute -right-10 -bottom-10 w-24 h-24 rounded-full blur-2xl opacity-20 ${loc === 'piquete' ? 'bg-green-500' : loc === 'circular' ? 'bg-orange-500' : 'bg-slate-500'}`}></div>
+                                        <div className={`absolute -right-10 -bottom-10 w-24 h-24 rounded-full blur-2xl ${loc === 'piquete' ? 'bg-success-200/30' : loc === 'circular' ? 'bg-gold-200/30' : 'bg-ink-200/30'}`}></div>
 
                                         <div className="flex items-center gap-3 mb-3 relative z-10">
-                                            <div className="w-12 h-12 rounded-xl bg-slate-700 overflow-hidden shadow-inner border border-slate-600 shrink-0">
+                                            <div className="w-12 h-12 rounded-xl bg-ink-100 overflow-hidden shadow-inner border border-ink-200 shrink-0">
                                                 {horse.photo ? (
                                                     <img src={horse.photo} alt={horse.name} className="w-full h-full object-cover" />
                                                 ) : (
@@ -123,13 +123,13 @@ export default function ClientDashboard() {
                                                 )}
                                             </div>
                                             <div className="overflow-hidden">
-                                                <h4 className="text-white font-bold truncate text-base leading-tight">{horse.name}</h4>
-                                                <p className="text-xs text-slate-400 truncate">{horse.breed}</p>
+                                                <h4 className="text-ink-800 font-bold truncate text-base leading-tight">{horse.name}</h4>
+                                                <p className="text-xs text-ink-500 truncate">{horse.breed}</p>
                                             </div>
                                         </div>
 
                                         <div className={`text-[10px] uppercase font-bold px-2 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors relative z-10 ${locColors[loc]}`}>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${loc === 'piquete' ? 'bg-green-400 animate-pulse' : loc === 'circular' ? 'bg-orange-400 animate-pulse' : 'bg-slate-400'}`}></div>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${loc === 'piquete' ? 'bg-success-500 animate-pulse' : loc === 'circular' ? 'bg-gold-500 animate-pulse' : 'bg-ink-400'}`}></div>
                                             {loc === 'box' ? 'Descansando en Box' : loc === 'piquete' ? 'Libre en Piquete' : 'En Circular'}
                                         </div>
                                     </div>
@@ -141,17 +141,17 @@ export default function ClientDashboard() {
             </div>
 
             {/* Quick Actions or Info block replacing the old large container */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 rounded-2xl border border-slate-700 p-5 flex items-center justify-between shadow-lg">
+            <div className="bg-gradient-to-r from-primary-50 to-sky-50 rounded-2xl border border-primary-100 p-5 flex items-center justify-between shadow-card">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
                         <Calendar size={20}/>
                     </div>
                     <div>
-                        <h4 className="text-white font-bold text-sm">Reserva de Instalaciones</h4>
-                        <p className="text-xs text-slate-400 mt-0.5">Asegurá tu lugar en la pista o caminador.</p>
+                        <h4 className="text-ink-800 font-bold text-sm">Reserva de Instalaciones</h4>
+                        <p className="text-xs text-ink-500 mt-0.5">Asegurá tu lugar en la pista o caminador.</p>
                     </div>
                 </div>
-                <Link to="/client/reserve" className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center hover:bg-gold-500 hover:text-slate-900 transition-colors">
+                <Link to="/client/reserve" className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center hover:bg-primary-600 transition-colors">
                     <ChevronRight size={16}/>
                 </Link>
             </div>
