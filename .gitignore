@@ -107,3 +107,7 @@ temp_diff*.txt
 temp_diff*
 scripts/commit_*.bat
 scripts/check_*.cjs
+scripts/test_*.js
+scripts/test_*.mjs
+scripts/check_*.js
+scripts/check_*.mjs
