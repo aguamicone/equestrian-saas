@@ -22,6 +22,7 @@ import StaffManagement from './pages/tenant/StaffManagement';
 import ActivityLog from './pages/tenant/ActivityLog';
 import SupplyRequests from './pages/tenant/SupplyRequests';
 import InventoryManager from './pages/tenant/InventoryManager'; // Fix: Import added
+import TenantEquipment from './pages/tenant/TenantEquipment';
 import UserManagement from './pages/tenant/UserManagement';
 import EventsManager from './pages/tenant/EventsManager';
 
@@ -34,6 +35,7 @@ import BoxReservation from './pages/client/BoxReservation';
 import ClientStaffView from './pages/client/ClientStaffView';
 import ClientFinance from './pages/client/ClientFinance';
 import Events from './pages/client/Events';
+import ClientEquipment from './pages/client/ClientEquipment';
 
 // Staff
 import StaffDashboard from './pages/dashboards/StaffDashboard';
@@ -83,6 +85,7 @@ function App() {
                                 <Route path="staff" element={<StaffManagement />} />
                                 <Route path="requests-center" element={<RequestsCenter />} />
                                 <Route path="inventory" element={<InventoryManager />} />
+                                <Route path="equipment" element={<TenantEquipment />} />
                                 <Route path="users" element={<UserManagement />} />
                                 <Route path="events" element={<EventsManager />} />
                                 <Route path="settings" element={<TenantSettings />} />
@@ -102,6 +105,7 @@ function App() {
                                 <Route path="staff" element={<ClientStaffView />} />
                                 <Route path="finance" element={<ClientFinance />} />
                                 <Route path="events" element={<Events />} />
+                                <Route path="equipment" element={<ClientEquipment />} />
                             </Route>
 
                             {/* Staff Routes */}
