@@ -287,12 +287,20 @@ service cloud.firestore {
     }
 
     // ----- EQUIPMENT_ITEMS (D8) -----
-    // Read: todos los del tenant (admin observa, cliente ve los suyos vía filtro en frontend)
+    // Read: admin y staff leen todo, cliente lee sus ítems y los de los tenantAdmins
     // Create: usuario autenticado del tenant SOLO con ownerId == su propio uid
     // Update: solo el dueño Y NO puede cambiar ownerId ni tenantId
     // Delete: solo el dueño
     match /EQUIPMENT_ITEMS/{itemId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isTenantAdmin(resource.data.tenantId) ||
+        isStaff(resource.data.tenantId) ||
+        (isClient(resource.data.tenantId) && (
+            resource.data.ownerId == request.auth.uid ||
+            get(/databases/$(database)/documents/USERS/$(resource.data.ownerId)).data.role == 'tenantAdmin'
+        ))
+      );
       
       allow create: if isSuperAdmin() || (
         isCreatingForMyTenant() && 

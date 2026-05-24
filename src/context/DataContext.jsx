@@ -110,7 +110,9 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
         unsubs.push(subscribe('USERS', setTenantUsers));
-        unsubs.push(subscribe('EQUIPMENT_ITEMS', setEquipmentItems));
+        if (currentUser?.role !== 'client') {
+            unsubs.push(subscribe('EQUIPMENT_ITEMS', setEquipmentItems));
+        }
 
         if (currentUser) {
             // Notificaciones filtradas server-side para respetar Firestore rules
@@ -130,6 +132,27 @@ export function DataProvider({ children }) {
 
         return () => unsubs.forEach(unsub => unsub());
     }, [currentTenant?.id, currentUser?.uid, currentUser?.role]);
+
+    // Suscripción específica de EQUIPMENT_ITEMS para clientes
+    useEffect(() => {
+        if (!currentTenant?.id || !currentUser?.uid || currentUser.role !== 'client') return;
+        
+        const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid);
+        // Firebase 'in' limita a 10 valores máximo
+        const allowedUids = [currentUser.uid, ...adminUids].slice(0, 10);
+        
+        const q = query(
+            collection(db, 'EQUIPMENT_ITEMS'),
+            where("tenantId", "==", currentTenant.id),
+            where("ownerId", "in", allowedUids)
+        );
+        
+        const unsub = onSnapshot(q, snap => {
+            setEquipmentItems(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        });
+        
+        return () => unsub();
+    }, [currentTenant?.id, currentUser?.uid, currentUser?.role, tenantUsers]);
 
     // --- Actions (Firebase Writes) ---
 
