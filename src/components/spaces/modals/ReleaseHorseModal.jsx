@@ -36,7 +36,7 @@ export default function ReleaseHorseModal({
   const [debtAction, setDebtAction] = useState(null); // null | 'forgive' | 'keep'
   const [reason, setReason] = useState('');
 
-  const totalDebt = pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalDebt = pendingPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const hasDebt = totalDebt > 0;
 
   const canConfirm = !hasDebt || debtAction !== null;

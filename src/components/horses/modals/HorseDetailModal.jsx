@@ -1,4 +1,4 @@
-﻿// src/components/horses/modals/HorseDetailModal.jsx
+// src/components/horses/modals/HorseDetailModal.jsx
 //
 // Modal de detalle del caballo con tabs:
 //   Tab 1: Info (datos básicos editables)
@@ -405,7 +405,7 @@ function FinanceTab({ horse, charges, currentPlans = [], summary, onMarkAsPaid, 
   );
 
   const monthlyPlans = currentPlans.filter(p => p.frequency === 'monthly');
-  const totalMensual = monthlyPlans.reduce((sum, p) => sum + (p.price || 0), 0);
+  const totalMensual = monthlyPlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
 
   return (
     <div className="px-6 py-5 space-y-6">

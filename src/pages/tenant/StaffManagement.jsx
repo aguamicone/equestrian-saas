@@ -275,7 +275,7 @@ function TabNomina({ staffMembers, payrollAdvances, updateUserSalary, addAdvance
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {staffMembers.map(staff => {
                     const monthAdvances = payrollAdvances.filter(a => a.staffId === staff.uid && new Date(a.date).getMonth() === currentMonth);
-                    const totalAdvances = monthAdvances.reduce((acc, curr) => acc + curr.amount, 0);
+                    const totalAdvances = monthAdvances.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
                     const salary = Number(staff.salary || 0);
                     const remaining = salary - totalAdvances;
 

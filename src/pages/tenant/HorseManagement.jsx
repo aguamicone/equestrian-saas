@@ -190,7 +190,7 @@ export default function HorseManagement() {
                 if (activePlans.length === 0) {
                     return <Badge variant="neutral" size="sm">Sin plan</Badge>;
                 }
-                const totalCost = activePlans.reduce((sum, p) => sum + p.price, 0);
+                const totalCost = activePlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
                 
                 return (
                     <div className="flex flex-col gap-0.5 items-start">

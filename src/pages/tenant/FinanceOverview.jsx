@@ -14,8 +14,8 @@ export default function FinanceOverview() {
     const [showGenerarCargos, setShowGenerarCargos] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
 
-    const income = finances.filter(f => f.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
-    const expenses = finances.filter(f => f.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
+    const income = finances.filter(f => f.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const expenses = finances.filter(f => f.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
     const balance = income - expenses;
 
     const handleOpenModal = (plan = null) => {
