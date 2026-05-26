@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { Plus, Trash2, User, Clock, Repeat, CalendarDays, Calendar } from 'lucide-react';
-import { USERS } from '../../services/mockFirebase';
 import { PageHeader, Card, DataTable, Modal, Badge, EmptyState } from '../../components/ui';
 
 // Días de la semana (orden lunes a domingo, como usamos en LATAM)
@@ -24,7 +23,7 @@ const FREQ_PRESETS = {
 };
 
 export default function RoutineManagement() {
-    const { routines, addRoutine, deleteRow } = useData();
+    const { routines, addRoutine, deleteRow, tenantUsers } = useData();
     const [showForm, setShowForm] = useState(false);
 
     // Form state
@@ -38,7 +37,7 @@ export default function RoutineManagement() {
     const [routineToDelete, setRoutineToDelete] = useState(null);
 
     // Solo staff
-    const staffMembers = useMemo(() => USERS.filter(u => u.role === 'staff'), []);
+    const staffMembers = useMemo(() => (tenantUsers || []).filter(u => u.role === 'staff'), [tenantUsers]);
 
     // Días efectivos según el modo seleccionado
     const effectiveDays = freqMode === 'custom' ? customDays : FREQ_PRESETS[freqMode].days;
