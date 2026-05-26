@@ -1,21 +1,33 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Edit, Calendar } from 'lucide-react';
-import { Card, PageHeader, Tabs, Badge, EmptyState } from '../../components/ui';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Edit, Calendar, AlertCircle } from 'lucide-react';
+import { Card, PageHeader, Tabs, Badge, EmptyState, Modal } from '../../components/ui';
 import GenerarCargosMensualesModal from '../../components/finanzas/modals/GenerarCargosMensualesModal';
 import PricingPlanModal from '../../components/finanzas/modals/PricingPlanModal';
+import MarkAsPaidModal from '../../components/horses/modals/MarkAsPaidModal';
 
 export default function FinanceOverview() {
-    const { finances, pricingPlans } = useData();
+    const { finances, pricingPlans, tenantUsers } = useData();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
     const [showGenerarCargos, setShowGenerarCargos] = useState(false);
+    const [showRegistrarCobroGlobal, setShowRegistrarCobroGlobal] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
+    const [chargeToMark, setChargeToMark] = useState(null);
 
-    const income = finances.filter(f => f.type === 'income').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-    const expenses = finances.filter(f => f.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    // Calculations
+    const income = useMemo(() => 
+        finances.filter(f => f.type === 'income')
+               .reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+    , [finances]);
+
+    const expenses = useMemo(() => 
+        finances.filter(f => f.type === 'expense')
+               .reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+    , [finances]);
+
     const balance = income - expenses;
 
     const handleOpenModal = (plan = null) => {
@@ -39,13 +51,22 @@ export default function FinanceOverview() {
                 title="Vista Financiera" 
                 subtitle="Gestión de ingresos, egresos y facturación del haras."
                 actions={
-                    <button 
-                        onClick={() => setShowGenerarCargos(true)}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        <Calendar size={18} />
-                        Generar cargos del mes
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                        <button 
+                            onClick={() => setShowRegistrarCobroGlobal(true)}
+                            className="btn-secondary flex items-center gap-2 font-bold"
+                        >
+                            <DollarSign size={18} />
+                            Registrar cobro manual
+                        </button>
+                        <button 
+                            onClick={() => setShowGenerarCargos(true)}
+                            className="btn-primary flex items-center gap-2 font-bold"
+                        >
+                            <Calendar size={18} />
+                            Generar cargos del mes
+                        </button>
+                    </div>
                 }
             />
 
@@ -97,6 +118,7 @@ export default function FinanceOverview() {
                         </Card>
                     </div>
 
+
                     <Card padding="none" className="overflow-hidden border-ink-200">
                         <div className="p-4 border-b border-ink-200 font-bold text-lg text-ink-900 bg-ink-50">
                             Transacciones Recientes
@@ -110,25 +132,55 @@ export default function FinanceOverview() {
                                             <th className="p-4 font-medium text-sm">Descripción</th>
                                             <th className="p-4 font-medium text-sm">Categoría</th>
                                             <th className="p-4 font-medium text-sm text-right">Monto</th>
+                                            <th className="p-4 font-medium text-sm text-center">Estado</th>
+                                            <th className="p-4 font-medium text-sm text-right">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-ink-100 text-ink-900">
-                                        {finances.map(item => (
-                                            <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
-                                                <td className="p-4 text-sm text-ink-500">{item.date}</td>
-                                                <td className="p-4 font-medium">{item.description}</td>
-                                                <td className="p-4">
-                                                    <Badge 
-                                                        variant="neutral" 
-                                                    >
-                                                        {item.category}
-                                                    </Badge>
-                                                </td>
-                                                <td className={`p-4 text-right font-bold font-mono text-base ${item.type === 'income' ? 'text-success-700' : 'text-danger-700'}`}>
-                                                    {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {finances.map(item => {
+                                            const isIncome = item.type === 'income';
+                                            const isPayment = item.type === 'payment';
+                                            const isPending = item.status === 'pending' || item.status === 'overdue';
+
+                                            let statusBadge = null;
+                                            if (isIncome) {
+                                                statusBadge = isPending 
+                                                    ? <Badge variant="gold">Pendiente</Badge>
+                                                    : <Badge variant="success">Cobrado</Badge>;
+                                            } else if (isPayment) {
+                                                statusBadge = <Badge variant="success">Pago Recibido</Badge>;
+                                            } else {
+                                                statusBadge = <Badge variant="neutral">Pagado</Badge>;
+                                            }
+
+                                            return (
+                                                <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
+                                                    <td className="p-4 text-sm text-ink-500">{item.date}</td>
+                                                    <td className="p-4 font-medium">{item.description}</td>
+                                                    <td className="p-4">
+                                                        <Badge variant="neutral">{item.category}</Badge>
+                                                    </td>
+                                                    <td className={`p-4 text-right font-bold font-mono text-base ${isIncome || isPayment ? 'text-success-700' : 'text-danger-700'}`}>
+                                                        {isIncome || isPayment ? '+' : '-'}${item.amount.toLocaleString()}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        {statusBadge}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        {isIncome && isPending ? (
+                                                            <button
+                                                                onClick={() => setChargeToMark(item)}
+                                                                className="text-xs text-primary-750 font-bold hover:underline bg-primary-50/50 hover:bg-primary-50 px-2.5 py-1.5 rounded-md border border-primary-200 transition-all"
+                                                            >
+                                                                Registrar Pago
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-xs text-ink-400 italic">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -221,6 +273,212 @@ export default function FinanceOverview() {
                 isOpen={showGenerarCargos} 
                 onClose={() => setShowGenerarCargos(false)} 
             />
+
+            <RegistrarCobroGlobalModal 
+                isOpen={showRegistrarCobroGlobal} 
+                onClose={() => setShowRegistrarCobroGlobal(false)} 
+            />
+
+            {chargeToMark && (
+                <MarkAsPaidModal 
+                    charge={chargeToMark}
+                    onClose={() => setChargeToMark(null)}
+                />
+            )}
         </div>
     );
 }
+
+// ===== SUB-COMPONENTE: MODAL GLOBAL DE COBRO =====
+function RegistrarCobroGlobalModal({ isOpen, onClose }) {
+    const { tenantUsers, finances, settleMultiplePendingCharges } = useData();
+    const [selectedClientId, setSelectedClientId] = useState('');
+    const [selectedChargeIds, setSelectedChargeIds] = useState([]);
+    const [note, setNote] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Filtrar clientes que tienen deuda pendiente
+    const debtors = useMemo(() => {
+        const pending = finances.filter(f => f.type === 'income' && (f.status === 'pending' || f.status === 'overdue'));
+        const debtorIds = new Set(pending.map(p => p.clientId).filter(Boolean));
+        return tenantUsers.filter(u => debtorIds.has(u.uid));
+    }, [tenantUsers, finances]);
+
+    const pendingChargesForSelected = useMemo(() => {
+        if (!selectedClientId) return [];
+        return finances
+            .filter(f => f.clientId === selectedClientId && f.type === 'income' && (f.status === 'pending' || f.status === 'overdue'))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+    }, [selectedClientId, finances]);
+
+    const handleClientChange = (e) => {
+        setSelectedClientId(e.target.value);
+        setSelectedChargeIds([]);
+        setError(null);
+    };
+
+    const toggleCharge = (id) => {
+        setSelectedChargeIds(prev => 
+            prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]
+        );
+    };
+
+    const selectAll = () => {
+        if (selectedChargeIds.length === pendingChargesForSelected.length) {
+            setSelectedChargeIds([]);
+        } else {
+            setSelectedChargeIds(pendingChargesForSelected.map(c => c.id));
+        }
+    };
+
+    const handleConfirm = async () => {
+        if (selectedChargeIds.length === 0) return;
+        setSaving(true);
+        setError(null);
+        try {
+            const res = await settleMultiplePendingCharges(selectedChargeIds, note);
+            if (res.success) {
+                onClose();
+            } else {
+                setError(res.error || 'Ocurrió un error al registrar los cobros.');
+            }
+        } catch (err) {
+            console.error(err);
+            setError('Error al registrar cobros.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const formatCurrency = (n) =>
+        new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: 'ARS',
+            minimumFractionDigits: 0,
+        }).format(n || 0);
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={saving ? undefined : onClose} title="Registrar Cobro Manual" size="md">
+            <div className="space-y-4 py-2 text-ink-900">
+                {error && (
+                    <div className="bg-danger-50 border border-danger-200 text-danger-900 px-4 py-3 rounded-xl text-sm">
+                        {error}
+                    </div>
+                )}
+
+                {/* Seleccionar Cliente */}
+                <div>
+                    <label className="block text-sm font-semibold text-ink-800 mb-1.5">
+                        Seleccionar Cliente Deudor
+                    </label>
+                    <select
+                        value={selectedClientId}
+                        onChange={handleClientChange}
+                        className="input-field"
+                        disabled={saving}
+                    >
+                        <option value="">-- Seleccionar deudor --</option>
+                        {debtors.map(client => {
+                            const clientDebt = finances
+                                .filter(f => f.clientId === client.uid && f.type === 'income' && (f.status === 'pending' || f.status === 'overdue'))
+                                .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+                            return (
+                                <option key={client.uid} value={client.uid}>
+                                    {client.displayName} (Deuda: {formatCurrency(clientDebt)})
+                                </option>
+                            );
+                        })}
+                    </select>
+                </div>
+
+                {selectedClientId && (
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center text-xs uppercase tracking-wider text-ink-500 font-medium pt-1">
+                            <span>Conceptos Pendientes</span>
+                            {pendingChargesForSelected.length > 0 && (
+                                <button type="button" onClick={selectAll} className="text-primary-750 hover:text-primary-800 font-semibold hover:underline">
+                                    {selectedChargeIds.length === pendingChargesForSelected.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                                </button>
+                            )}
+                        </div>
+
+                        {pendingChargesForSelected.length === 0 ? (
+                            <div className="text-center py-6 text-sm text-ink-500 italic bg-ink-50 rounded-xl border border-dashed border-ink-200">
+                                El cliente no posee deudas pendientes.
+                            </div>
+                        ) : (
+                            <div className="border border-ink-200 rounded-xl max-h-48 overflow-y-auto divide-y divide-ink-100 bg-white">
+                                {pendingChargesForSelected.map(charge => {
+                                    const isChecked = selectedChargeIds.includes(charge.id);
+                                    return (
+                                        <label
+                                            key={charge.id}
+                                            className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-ink-50/50 transition-colors ${isChecked ? 'bg-primary-50/20' : ''}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => toggleCharge(charge.id)}
+                                                className="w-4 h-4 text-primary-600 rounded border-ink-300 focus:ring-primary-500"
+                                                disabled={saving}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-sm font-medium text-ink-900 truncate">
+                                                    {charge.description || charge.category}
+                                                </div>
+                                                <div className="text-[11px] text-ink-500">
+                                                    {charge.date}
+                                                </div>
+                                            </div>
+                                            <div className="text-sm font-bold text-ink-800 tabular-nums">
+                                                {formatCurrency(charge.amount)}
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Nota opcional */}
+                {selectedChargeIds.length > 0 && (
+                    <div>
+                        <label className="block text-xs font-semibold text-ink-600 uppercase tracking-wider mb-1.5">
+                            Nota del pago <span className="text-ink-400 font-normal lowercase tracking-normal">(opcional)</span>
+                        </label>
+                        <textarea
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            className="input-field resize-none text-sm"
+                            rows="2"
+                            placeholder="Ej: Recibido efectivo en administración, transferencia, etc."
+                            disabled={saving}
+                        />
+                      </div>
+                  )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-ink-100 mt-4 bg-ink-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                  <button
+                      onClick={onClose}
+                      disabled={saving}
+                      className="btn-secondary"
+                  >
+                      Cancelar
+                  </button>
+                  <button
+                      onClick={handleConfirm}
+                      disabled={saving || selectedChargeIds.length === 0}
+                      className="btn-primary"
+                  >
+                      {saving ? 'Registrando...' : `Confirmar cobro (${selectedChargeIds.length})`}
+                  </button>
+              </div>
+          </Modal>
+      );
+  }
+

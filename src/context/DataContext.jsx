@@ -1184,6 +1184,168 @@ export function DataProvider({ children }) {
         }
     };
 
+    const settlePendingCharge = async (chargeId, note = '') => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+
+        const charge = finances.find(f => f.id === chargeId);
+        if (!charge) return { success: false, error: 'Cargo no encontrado.' };
+
+        try {
+            const nowIso = new Date().toISOString();
+            const createdBy = currentUser.uid;
+            const batch = writeBatch(db);
+
+            // 1. Crear referencia para el nuevo PAYMENT (genera ID antes de escribir)
+            const newPaymentRef = doc(collection(db, 'FINANCES'));
+            const newPaymentId = newPaymentRef.id;
+
+            // 2. SET del PAYMENT en el batch
+            batch.set(newPaymentRef, {
+                type: 'payment',
+                status: 'paid',
+                amount: Number(charge.amount || 0),
+                clientId: charge.clientId || null,
+                horseId: charge.horseId || null,
+                relatedChargeId: charge.id,
+                description: `Pago: ${charge.description || charge.category || 'Cargo'}`,
+                category: 'Pago',
+                date: nowIso.slice(0, 10),
+                paidAt: serverTimestamp(),
+                note: note.trim() || null,
+                tenantId: currentTenant.id,
+                createdAt: serverTimestamp(),
+                createdBy,
+            });
+
+            // 3. UPDATE del cargo original en el mismo batch
+            const chargeRef = doc(db, 'FINANCES', charge.id);
+            batch.update(chargeRef, {
+                status: 'paid',
+                paidAt: serverTimestamp(),
+                paidByPaymentId: newPaymentId,
+            });
+
+            // 4. Crear Log
+            const newLogRef = doc(collection(db, 'LOGS'));
+            batch.set(newLogRef, {
+                type: 'charge_settled',
+                tenantId: currentTenant.id,
+                horseId: charge.horseId || null,
+                chargeId: charge.id,
+                paymentId: newPaymentId,
+                amount: Number(charge.amount || 0),
+                description: charge.description || '',
+                by: createdBy,
+                staffName: currentUser.displayName || 'Administrador',
+                timestamp: serverTimestamp(),
+                note: note.trim() || null
+            });
+
+            // 5. Notificación al cliente si está asociado
+            if (charge.clientId) {
+                const newNotifRef = doc(collection(db, 'NOTIFICATIONS'));
+                batch.set(newNotifRef, {
+                    recipientId: charge.clientId,
+                    message: `Se ha registrado el pago de: ${charge.description || 'Cargo'} por valor de $${Number(charge.amount).toLocaleString()}`,
+                    type: 'info',
+                    read: false,
+                    timestamp: new Date().toISOString(),
+                    tenantId: currentTenant.id
+                });
+            }
+
+            await batch.commit();
+            return { success: true };
+        } catch (error) {
+            console.error('Error al registrar cobro:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const settleMultiplePendingCharges = async (chargeIds, note = '') => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        if (!Array.isArray(chargeIds) || chargeIds.length === 0) return { success: false, error: 'Sin cargos seleccionados.' };
+
+        try {
+            const nowIso = new Date().toISOString();
+            const createdBy = currentUser.uid;
+            const batch = writeBatch(db);
+
+            for (const chargeId of chargeIds) {
+                const charge = finances.find(f => f.id === chargeId);
+                if (!charge) continue;
+
+                // 1. Crear referencia para el nuevo PAYMENT
+                const newPaymentRef = doc(collection(db, 'FINANCES'));
+                const newPaymentId = newPaymentRef.id;
+
+                // 2. SET del PAYMENT
+                batch.set(newPaymentRef, {
+                    type: 'payment',
+                    status: 'paid',
+                    amount: Number(charge.amount || 0),
+                    clientId: charge.clientId || null,
+                    horseId: charge.horseId || null,
+                    relatedChargeId: charge.id,
+                    description: `Pago: ${charge.description || charge.category || 'Cargo'}`,
+                    category: 'Pago',
+                    date: nowIso.slice(0, 10),
+                    paidAt: serverTimestamp(),
+                    note: note.trim() || null,
+                    tenantId: currentTenant.id,
+                    createdAt: serverTimestamp(),
+                    createdBy,
+                });
+
+                // 3. UPDATE del cargo original
+                const chargeRef = doc(db, 'FINANCES', charge.id);
+                batch.update(chargeRef, {
+                    status: 'paid',
+                    paidAt: serverTimestamp(),
+                    paidByPaymentId: newPaymentId,
+                });
+
+                // 4. Crear Log
+                const newLogRef = doc(collection(db, 'LOGS'));
+                batch.set(newLogRef, {
+                    type: 'charge_settled',
+                    tenantId: currentTenant.id,
+                    horseId: charge.horseId || null,
+                    chargeId: charge.id,
+                    paymentId: newPaymentId,
+                    amount: Number(charge.amount || 0),
+                    description: charge.description || '',
+                    by: createdBy,
+                    staffName: currentUser.displayName || 'Administrador',
+                    timestamp: serverTimestamp(),
+                    note: note.trim() || null
+                });
+
+                // 5. Notificación al cliente si está asociado
+                if (charge.clientId) {
+                    const newNotifRef = doc(collection(db, 'NOTIFICATIONS'));
+                    batch.set(newNotifRef, {
+                        recipientId: charge.clientId,
+                        message: `Se ha registrado el pago de: ${charge.description || 'Cargo'} por valor de $${Number(charge.amount).toLocaleString()}`,
+                        type: 'info',
+                        read: false,
+                        timestamp: new Date().toISOString(),
+                        tenantId: currentTenant.id
+                    });
+                }
+            }
+
+            await batch.commit();
+            return { success: true };
+        } catch (error) {
+            console.error('Error al registrar cobros múltiples:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+
     const createClientWithHorses = async ({ client, horses }) => {
         if (!currentTenant?.id) {
             return { success: false, error: 'Tenant no detectado. Reiniciá sesión.' };
@@ -1522,6 +1684,7 @@ export function DataProvider({ children }) {
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
         assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges, deleteClientCascading,
+        settlePendingCharge, settleMultiplePendingCharges,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse

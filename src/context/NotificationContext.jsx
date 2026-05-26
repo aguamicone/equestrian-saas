@@ -58,7 +58,7 @@ export function NotificationProvider({ children }) {
             {children}
 
             {/* Toast Container */}
-            <div className="fixed bottom-20 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+            <div className="fixed bottom-20 right-4 flex flex-col gap-3 pointer-events-none" style={{ zIndex: 9999 }}>
                 {toasts.map(toast => {
                     const styles = getToastStyles(toast.type);
                     return (

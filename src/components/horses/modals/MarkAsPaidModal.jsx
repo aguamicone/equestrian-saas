@@ -1,34 +1,29 @@
 // src/components/horses/modals/MarkAsPaidModal.jsx
 //
 // Modal de confirmación para marcar un cargo como pagado.
-// Implementa el patrón "double-entry":
-//   1. Crear un PAYMENT doc nuevo en FINANCES con type='payment', status='paid'
-//   2. Actualizar el cargo original a status='paid' + paidAt + paidByPaymentId
-//
-// Esto deja trazabilidad para el módulo de Finanzas que viene en Sprint 5.
+// Utiliza DataContext.settlePendingCharge para la atomicidad de la transacción.
 
 import { useState } from 'react';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Modal } from '../../ui';
-import { 
-  doc, 
-  collection, 
-  writeBatch, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { useData } from '../../../context/DataContext';
 
 /**
  * Props:
  *   charge: el cargo (finance) a marcar como pagado
- *   horse: caballo asociado (para descripciones)
- *   owner: dueño del caballo (puede ser null si está huérfano)
+ *   horse: caballo asociado (opcional, se resuelve por context si no se provee)
+ *   owner: dueño del caballo (opcional, se resuelve por context si no se provee)
  *   onClose: () => void
  */
-export default function MarkAsPaidModal({ charge, horse, owner, onClose }) {
+export default function MarkAsPaidModal({ charge, horse: initialHorse, owner: initialOwner, onClose }) {
+  const { horses, tenantUsers, settlePendingCharge } = useData();
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Resolver caballo y dueño dinámicamente si no se proveen como props
+  const horse = initialHorse || horses.find(h => h.id === charge?.horseId);
+  const owner = initialOwner || tenantUsers.find(u => u.uid === (charge?.clientId || horse?.ownerId));
 
   const formatCurrency = (n) =>
     new Intl.NumberFormat('es-AR', {
@@ -37,59 +32,17 @@ export default function MarkAsPaidModal({ charge, horse, owner, onClose }) {
       minimumFractionDigits: 0,
     }).format(n || 0);
 
-  // NOTA ARQUITECTÓNICA:
-  // 1) Usamos Firestore batch directamente en lugar de 
-  //    DataContext.addPayment porque necesitamos atomicidad 
-  //    entre crear el PAYMENT y actualizar el cargo. Cuando se 
-  //    refactorice DataContext para soportar transacciones 
-  //    (Sprint 5), volver al patrón estándar de Context.
-  //
-  // 2) Mezclamos timestamps (paidAt como ISO string vs createdAt 
-  //    con serverTimestamp). En Sprint 5 unificar a 
-  //    serverTimestamp para todos los campos de auditoría 
-  //    financiera (paidAt, createdAt, paymentDate, etc.) por 
-  //    razones de confiabilidad (no depender del reloj del cliente).
   const handleConfirm = async () => {
-    if (!charge || !horse) return;
+    if (!charge) return;
     setSaving(true);
     setError(null);
     try {
-      const nowIso = new Date().toISOString();
-      const batch = writeBatch(db);
-
-      // 1. Crear referencia para el nuevo PAYMENT (genera ID antes de escribir)
-      const newPaymentRef = doc(collection(db, 'FINANCES'));
-      const newPaymentId = newPaymentRef.id;
-
-      // 2. SET del PAYMENT en el batch
-      batch.set(newPaymentRef, {
-        type: 'payment',
-        status: 'paid',
-        amount: Number(charge.amount || 0),
-        clientId: charge.clientId || owner?.uid || owner?.id || null,
-        horseId: charge.horseId || horse.id,
-        relatedChargeId: charge.id,
-        description: `Pago: ${charge.description || charge.category || 'Cargo'}`,
-        category: 'Pago',
-        date: nowIso.slice(0, 10),
-        paidAt: nowIso,
-        note: note.trim() || null,
-        tenantId: horse.tenantId,  // ← importante: heredar el tenantId del caballo
-        createdAt: serverTimestamp(),
-      });
-
-      // 3. UPDATE del cargo original en el mismo batch
-      const chargeRef = doc(db, 'FINANCES', charge.id);
-      batch.update(chargeRef, {
-        status: 'paid',
-        paidAt: nowIso,
-        paidByPaymentId: newPaymentId,
-      });
-
-      // 4. COMMIT atómico (all-or-nothing)
-      await batch.commit();
-
-      onClose();
+      const res = await settlePendingCharge(charge.id, note);
+      if (res.success) {
+        onClose();
+      } else {
+        setError(res.error || 'No se pudo registrar el pago. Intentá de nuevo.');
+      }
     } catch (err) {
       console.error('Error marcando como pagado:', err);
       setError('No se pudo registrar el pago. Intentá de nuevo.');
@@ -122,14 +75,14 @@ export default function MarkAsPaidModal({ charge, horse, owner, onClose }) {
         <div className="bg-ink-50 rounded-xl p-3 space-y-1.5">
           <div className="text-xs text-ink-500">Cargo a saldar</div>
           <div className="text-sm font-medium text-ink-900">
-            {charge.description || charge.category || 'Cargo sin descripción'}
+            {charge?.description || charge?.category || 'Cargo sin descripción'}
           </div>
           <div className="flex items-center justify-between pt-1">
             <div className="text-xs text-ink-500">
-              {horse.name} · {owner?.displayName || 'Sin dueño'}
+              {horse ? horse.name : 'Concepto general'} · {owner?.displayName || 'Sin dueño'}
             </div>
             <div className="text-base font-display font-medium text-ink-900 tabular-nums">
-              {formatCurrency(charge.amount)}
+              {formatCurrency(charge?.amount)}
             </div>
           </div>
         </div>
@@ -152,7 +105,7 @@ export default function MarkAsPaidModal({ charge, horse, owner, onClose }) {
         {/* Aclaración de qué va a pasar */}
         <div className="text-[11px] text-ink-500 leading-snug bg-sky-50 border border-sky-100 rounded-lg p-2.5">
           Se va a registrar un pago y el cargo va a quedar marcado como pagado.
-          Esta acción queda registrada en la cuenta corriente del caballo.
+          Esta acción queda registrada en la cuenta corriente {horse ? `del caballo ${horse.name}` : 'del cliente'}.
         </div>
 
         {/* Error si hay */}
@@ -181,3 +134,4 @@ export default function MarkAsPaidModal({ charge, horse, owner, onClose }) {
     </Modal>
   );
 }
+
