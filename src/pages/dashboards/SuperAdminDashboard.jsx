@@ -1,46 +1,51 @@
 import { BarChart3, Users, Building } from 'lucide-react';
+import { PageHeader, Card } from '../../components/ui';
 
 export default function SuperAdminDashboard() {
     return (
-        <div>
-            <h2 className="text-3xl font-bold text-slate-100 mb-6">Resumen del Sistema</h2>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Resumen del Sistema"
+                subtitle="Métricas globales del negocio SaaS, cantidad de usuarios e ingresos recurrentes mensuales (MRR)"
+                icon={BarChart3}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="glass-card p-6 rounded-lg border border-slate-700 shadow flex items-center gap-4">
-                    <div className="p-4 rounded-full bg-blue-500/10 text-blue-400">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 stagger-children">
+                <Card padding="normal" className="flex items-center gap-4 border-ink-200 bg-white shadow-sm transition-all hover:shadow hover:border-ink-300 duration-200">
+                    <div className="p-3 rounded-xl bg-primary-50 text-primary-500 border border-primary-100 shrink-0">
                         <Building size={32} />
                     </div>
                     <div>
-                        <div className="text-2xl font-bold text-white">2</div>
-                        <div className="text-sm text-slate-400">Tenants Activos</div>
+                        <div className="text-2xl font-black text-ink-900">2</div>
+                        <div className="text-xs text-ink-450 uppercase font-bold tracking-wider mt-0.5">Tenants Activos</div>
                     </div>
-                </div>
+                </Card>
 
-                <div className="glass-card p-6 rounded-lg border border-slate-700 shadow flex items-center gap-4">
-                    <div className="p-4 rounded-full bg-green-500/10 text-green-400">
+                <Card padding="normal" className="flex items-center gap-4 border-ink-200 bg-white shadow-sm transition-all hover:shadow hover:border-ink-300 duration-200">
+                    <div className="p-3 rounded-xl bg-success-50 text-success-500 border border-success-100 shrink-0">
                         <Users size={32} />
                     </div>
                     <div>
-                        <div className="text-2xl font-bold text-white">125</div>
-                        <div className="text-sm text-slate-400">Usuarios Totales</div>
+                        <div className="text-2xl font-black text-ink-900">125</div>
+                        <div className="text-xs text-ink-450 uppercase font-bold tracking-wider mt-0.5">Usuarios Totales</div>
                     </div>
-                </div>
+                </Card>
 
-                <div className="glass-card p-6 rounded-lg border border-slate-700 shadow flex items-center gap-4">
-                    <div className="p-4 rounded-full bg-gold-500/10 text-gold-500">
+                <Card padding="normal" className="flex items-center gap-4 border-ink-200 bg-white shadow-sm transition-all hover:shadow hover:border-ink-300 duration-200">
+                    <div className="p-3 rounded-xl bg-gold-50 text-gold-500 border border-gold-100 shrink-0">
                         <BarChart3 size={32} />
                     </div>
                     <div>
-                        <div className="text-2xl font-bold text-white">$45k</div>
-                        <div className="text-sm text-slate-400">MRR</div>
+                        <div className="text-2xl font-black text-ink-900">$45k</div>
+                        <div className="text-xs text-ink-450 uppercase font-bold tracking-wider mt-0.5">MRR</div>
                     </div>
-                </div>
+                </Card>
             </div>
 
-            <div className="glass-card p-6">
-                <h3 className="font-bold text-lg text-white mb-4">Actividad Reciente</h3>
-                <div className="text-slate-400">Simulación de log de actividad...</div>
-            </div>
+            <Card padding="normal" className="border-ink-200 bg-white shadow-sm mt-6">
+                <h3 className="font-bold text-lg text-ink-900 mb-4 pb-2 border-b border-ink-150">Actividad Reciente</h3>
+                <div className="text-ink-450 italic text-sm">Simulación de log de actividad...</div>
+            </Card>
         </div>
     );
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { getTenants, getCollection } from '../../services/mockFirebase';
 import { useData } from '../../context/DataContext';
-import { Building2, Plus, X, User } from 'lucide-react';
+import { Building2, Plus, User } from 'lucide-react';
+import { PageHeader, Card, Badge, Modal } from '../../components/ui';
 
 export default function TenantManager() {
     const { addTenant, addUser } = useData();
@@ -53,108 +54,149 @@ export default function TenantManager() {
     };
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-slate-100">Gestión de Tenants</h2>
-                <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-                    <Plus size={18} /> Nuevo Tenant
-                </button>
-            </div>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Gestión de Tenants"
+                subtitle="Alta, control y configuración de caballerizas y haras del sistema"
+                icon={Building2}
+                actions={
+                    <button 
+                        onClick={() => setShowModal(true)} 
+                        className="btn-primary flex items-center gap-2 shadow-sm font-bold"
+                    >
+                        <Plus size={18} /> Nuevo Tenant
+                    </button>
+                }
+            />
 
-            <div className="glass-card overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-slate-700/50 text-slate-400">
-                        <tr>
-                            <th className="p-4">Nombre del Tenant</th>
-                            <th className="p-4">Dominio</th>
-                            <th className="p-4">Admins</th>
-                            <th className="p-4">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700 text-slate-200">
-                        {Object.values(tenants).map(tenant => {
-                            const admins = getCollection('USERS').filter(u => u.tenantId === tenant.id && u.role === 'tenantAdmin');
-                            return (
-                                <tr key={tenant.id} className="hover:bg-slate-700/30">
-                                    <td className="p-4 font-bold flex items-center gap-2">
-                                        <Building2 size={16} className="text-gold-500" />
-                                        {tenant.name}
-                                    </td>
-                                    <td className="p-4 text-sm text-slate-400">{tenant.domain}</td>
-                                    <td className="p-4">
-                                        <div className="flex -space-x-2">
-                                            {admins.map(admin => (
-                                                <div key={admin.uid} className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center border-2 border-slate-800 text-xs" title={admin.displayName}>
-                                                    {admin.displayName.charAt(0)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
-                                            Activo
-                                        </span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="glass-panel w-full max-w-lg animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-                            <h3 className="text-xl font-bold text-white">Alta de Nueva Caballeriza</h3>
-                            <button onClick={() => setShowModal(false)}><X className="text-slate-400 hover:text-white" /></button>
-                        </div>
-                        <form onSubmit={handleCreate} className="p-6 space-y-6">
-                            <div className="space-y-4">
-                                <h4 className="text-gold-500 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <Building2 size={14} /> Datos de la Caballeriza
-                                </h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-slate-400 text-sm mb-2">Nombre</label>
-                                        <input type="text" className="input-field" placeholder="Ej: Haras El Sol" value={name} onChange={e => setName(e.target.value)} required />
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-400 text-sm mb-2">Subdominio</label>
-                                        <div className="flex items-center">
-                                            <input type="text" className="input-field rounded-r-none" placeholder="haras-sol" value={domain} onChange={e => setDomain(e.target.value)} required />
-                                            <span className="bg-slate-700 text-slate-400 px-3 py-2 rounded-r border border-l-0 border-slate-600 text-xs">.app</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 pt-4 border-t border-slate-700">
-                                <h4 className="text-gold-500 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <User size={14} /> Datos del Administrador
-                                </h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-slate-400 text-sm mb-2">Nombre Completo</label>
-                                        <input type="text" className="input-field" placeholder="Admin Name" value={adminName} onChange={e => setAdminName(e.target.value)} required />
-                                    </div>
-                                    <div>
-                                        <label className="block text-slate-400 text-sm mb-2">Email</label>
-                                        <input type="email" className="input-field" placeholder="admin@haras.com" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} required />
-                                    </div>
-                                </div>
-                                <p className="text-xs text-slate-500">Contraseña por defecto: <code>1234</code></p>
-                            </div>
-
-                            <div className="pt-4 flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
-                                <button type="submit" className="btn-primary">Crear Tenant</button>
-                            </div>
-                        </form>
-                    </div>
+            <Card padding="none" className="overflow-hidden border-ink-200 shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-ink-600 border-collapse">
+                        <thead className="bg-ink-50 text-ink-500 uppercase font-bold text-[11px] tracking-wider border-b border-ink-200">
+                            <tr>
+                                <th className="p-4">Nombre del Tenant</th>
+                                <th className="p-4">Dominio</th>
+                                <th className="p-4">Admins</th>
+                                <th className="p-4">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-ink-100 bg-white">
+                            {Object.values(tenants).map(tenant => {
+                                const admins = getCollection('USERS').filter(u => u.tenantId === tenant.id && u.role === 'tenantAdmin');
+                                return (
+                                    <tr key={tenant.id} className="hover:bg-ink-50/50 transition-colors">
+                                        <td className="p-4 font-bold text-ink-900 flex items-center gap-2.5">
+                                            <Building2 size={16} className="text-primary-500" />
+                                            {tenant.name}
+                                        </td>
+                                        <td className="p-4 text-sm text-ink-400 font-medium">{tenant.domain}</td>
+                                        <td className="p-4">
+                                            <div className="flex -space-x-1.5 overflow-hidden">
+                                                {admins.map(admin => (
+                                                    <div 
+                                                        key={admin.uid} 
+                                                        className="w-8 h-8 rounded-full bg-primary-50 border border-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shadow-sm" 
+                                                        title={admin.displayName}
+                                                    >
+                                                        {admin.displayName.charAt(0)}
+                                                    </div>
+                                                ))}
+                                                {admins.length === 0 && <span className="text-ink-400 italic text-xs">Sin administradores</span>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <Badge tone="success">
+                                                Activo
+                                            </Badge>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+            </Card>
+
+            {/* Modal de Alta */}
+            <Modal 
+                open={showModal} 
+                onClose={() => setShowModal(false)}
+                title="Alta de Nueva Caballeriza"
+                footer={
+                    <div className="flex justify-end gap-3 w-full">
+                        <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
+                        <button type="submit" form="create-tenant-form" className="btn-primary px-6 shadow-sm">Crear Tenant</button>
+                    </div>
+                }
+            >
+                <form id="create-tenant-form" onSubmit={handleCreate} className="space-y-6">
+                    <div className="space-y-4">
+                        <h4 className="text-primary-600 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b border-ink-150 pb-2">
+                            <Building2 size={14} /> Datos de la Caballeriza
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Nombre</label>
+                                <input 
+                                    type="text" 
+                                    className="input-field bg-white border-ink-200 text-ink-800 focus:border-primary-500 focus:ring-0" 
+                                    placeholder="Ej: Haras El Sol" 
+                                    value={name} 
+                                    onChange={e => setName(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Subdominio</label>
+                                <div className="flex items-center">
+                                    <input 
+                                        type="text" 
+                                        className="input-field bg-white border-ink-200 text-ink-850 focus:border-primary-500 focus:ring-0 rounded-r-none" 
+                                        placeholder="haras-sol" 
+                                        value={domain} 
+                                        onChange={e => setDomain(e.target.value)} 
+                                        required 
+                                    />
+                                    <span className="bg-ink-100 text-ink-500 px-3 py-2 rounded-r border border-l-0 border-ink-200 text-xs font-bold tracking-tight">.equestrian.app</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-ink-150">
+                        <h4 className="text-primary-600 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b border-ink-150 pb-2">
+                            <User size={14} /> Datos del Administrador
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Nombre Completo</label>
+                                <input 
+                                    type="text" 
+                                    className="input-field bg-white border-ink-200 text-ink-800 focus:border-primary-500 focus:ring-0" 
+                                    placeholder="Admin Name" 
+                                    value={adminName} 
+                                    onChange={e => setAdminName(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Email</label>
+                                <input 
+                                    type="email" 
+                                    className="input-field bg-white border-ink-200 text-ink-800 focus:border-primary-500 focus:ring-0" 
+                                    placeholder="admin@haras.com" 
+                                    value={adminEmail} 
+                                    onChange={e => setAdminEmail(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-ink-400 font-semibold bg-ink-50 px-2.5 py-1 rounded-lg border border-ink-150 inline-block">
+                            Contraseña por defecto: <code className="text-ink-800 font-bold">1234</code>
+                        </p>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
