@@ -1,6 +1,7 @@
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { Ticket, Calendar, AlignLeft, CheckCircle } from 'lucide-react';
+import { PageHeader, Card } from '../../components/ui';
 
 export default function Events() {
     const { events, updateRow } = useData();
@@ -23,40 +24,44 @@ export default function Events() {
     };
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                <Ticket className="text-gold-500" /> Próximos Eventos
-            </h1>
+        <div className="space-y-6 pb-20">
+            <PageHeader 
+                title="Próximos Eventos"
+                subtitle="Calendario de actividades, competencias y eventos sociales del haras"
+                icon={Ticket}
+            />
 
             {sortedEvents.length === 0 ? (
-                <div className="glass-panel p-8 text-center text-slate-400">
-                    No hay eventos programados en este momento.
+                <div className="text-center py-12 bg-white border border-ink-200 rounded-2xl shadow-sm max-w-lg mx-auto flex flex-col items-center justify-center">
+                    <Calendar size={48} className="text-ink-300 mb-4" />
+                    <h3 className="text-lg font-bold text-ink-900">Sin eventos</h3>
+                    <p className="text-ink-500 text-sm mt-1">No hay eventos programados en este momento.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {sortedEvents.map(event => {
                         const isAttending = event.attendees?.find(a => a.uid === currentUser.uid);
                         return (
-                            <div key={event.id} className="glass-panel p-6 flex flex-col justify-between">
+                            <Card key={event.id} padding="normal" className="flex flex-col justify-between hover:border-ink-300 shadow-sm transition-all duration-200">
                                 <div>
-                                    <h3 className="text-xl font-bold text-white mb-4">{event.name}</h3>
+                                    <h3 className="text-xl font-bold text-ink-900 mb-4">{event.name}</h3>
                                     <div className="space-y-3 mb-6 text-sm">
-                                        <div className="flex items-center gap-3 text-slate-300 bg-slate-800/50 p-3 rounded">
-                                            <Calendar size={18} className="text-gold-500" />
-                                            {new Date(event.date).toLocaleString()}
+                                        <div className="flex items-center gap-3 text-primary-700 bg-primary-50 border border-primary-100 p-3 rounded-xl font-medium">
+                                            <Calendar size={18} className="text-primary-500" />
+                                            {new Date(event.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                         </div>
-                                        <div className="flex items-start gap-3 text-slate-400">
-                                            <AlignLeft size={18} className="text-gold-500 shrink-0 mt-0.5" />
+                                        <div className="flex items-start gap-3 text-ink-500">
+                                            <AlignLeft size={18} className="text-primary-500 shrink-0 mt-0.5" />
                                             <p className="leading-relaxed">{event.description}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => toggleAttendance(event)}
-                                    className={`w-full py-3 rounded font-bold flex items-center justify-center gap-2 transition-all ${
+                                    className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                                         isAttending 
-                                        ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' 
-                                        : 'bg-gold-500 hover:bg-gold-600 text-slate-900 shadow-[0_0_15px_rgba(212,175,55,0.3)]'
+                                        ? 'btn-secondary' 
+                                        : 'btn-primary shadow-sm'
                                     }`}
                                 >
                                     {isAttending ? (
@@ -65,7 +70,7 @@ export default function Events() {
                                         <><CheckCircle size={20} /> Asisto al evento</>
                                     )}
                                 </button>
-                            </div>
+                            </Card>
                         );
                     })}
                 </div>
