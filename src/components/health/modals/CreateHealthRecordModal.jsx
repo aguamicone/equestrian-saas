@@ -92,10 +92,10 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
               required
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value, subtype: '' })}
-              className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              className="input-field"
             >
               {EVENT_TYPES.map(t => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <option key={t.value} value={t.value} className="bg-white text-ink-800">{t.label}</option>
               ))}
             </select>
           </div>
@@ -107,7 +107,7 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
               placeholder="Ej: Antitetánica, Ivermectina..."
               value={formData.subtype}
               onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
-              className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              className="input-field"
             />
             {suggestions.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
                 required
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                className="input-field"
               />
             </div>
             
@@ -162,7 +162,7 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
                 value={formData.nextDueDate}
                 min={formData.date}
                 onChange={(e) => setFormData({ ...formData, nextDueDate: e.target.value })}
-                className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                className="input-field"
               />
             </div>
           )}
@@ -174,7 +174,7 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
               placeholder="Nombre del profesional..."
               value={formData.veterinarianName}
               onChange={(e) => setFormData({ ...formData, veterinarianName: e.target.value })}
-              className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              className="input-field"
             />
           </div>
 
@@ -185,7 +185,7 @@ export default function CreateHealthRecordModal({ horse, onClose }) {
               placeholder="Reacciones, observaciones..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 border border-ink-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
+              className="input-field resize-none"
             />
           </div>
 
