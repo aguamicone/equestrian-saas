@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { Search, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
+import { PageHeader, Card, Badge } from '../../components/ui';
 
 export default function SupplyRequests() {
     const { requests, updateRow, addLog } = useData();
@@ -21,90 +22,108 @@ export default function SupplyRequests() {
         });
     };
 
-    const getUrgencyColor = (urgency) => {
+    const getUrgencyTone = (urgency) => {
         switch (urgency) {
-            case 'high': return 'text-red-400 bg-red-900/20 border-red-900/50';
-            case 'medium': return 'text-yellow-400 bg-yellow-900/20 border-yellow-900/50';
-            default: return 'text-blue-400 bg-blue-900/20 border-blue-900/50';
+            case 'high': return 'danger';
+            case 'medium': return 'gold';
+            default: return 'neutral';
+        }
+    };
+
+    const getUrgencyLabel = (urgency) => {
+        switch (urgency) {
+            case 'high': return 'Alta';
+            case 'medium': return 'Media';
+            default: return 'Baja';
         }
     };
 
     return (
-        <div className="pb-20">
-            <h2 className="text-2xl font-bold text-slate-100 mb-6 flex items-center gap-2">
-                <ShoppingBag className="text-gold-500" /> Pedidos de Insumos
-            </h2>
+        <div className="space-y-6 pb-20">
+            <PageHeader 
+                kicker="Control de Stock"
+                title="Pedidos de Insumos"
+                subtitle="Seguimiento y aprobación de solicitudes de insumos realizadas por el personal"
+                icon={ShoppingBag}
+            />
 
             {/* Search */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-2.5 h-5 w-5 text-slate-500" />
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
                 <input
-                    className="input-field pl-10"
+                    className="input-field pl-9 py-2.5 text-sm w-full bg-white border-ink-200 text-ink-700 placeholder-ink-400 focus:border-primary-500 focus:ring-0"
                     placeholder="Buscar pedido..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            <div className="glass-card border border-slate-700 overflow-hidden">
-                <table className="w-full text-left text-sm text-slate-400">
-                    <thead className="bg-slate-900/50 text-slate-200 uppercase font-bold text-xs">
-                        <tr>
-                            <th className="p-4">Fecha</th>
-                            <th className="p-4">Solicitante</th>
-                            <th className="p-4">Detalle</th>
-                            <th className="p-4">Urgencia</th>
-                            <th className="p-4">Estado</th>
-                            <th className="p-4 text-right">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {supplyOrders.map(order => (
-                            <tr key={order.id} className="hover:bg-slate-700/50 transition-colors">
-                                <td className="p-4">
-                                    {new Date(order.timestamp).toLocaleDateString()}
-                                    <div className="text-xs text-slate-500">{new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                </td>
-                                <td className="p-4 font-medium text-slate-200">
-                                    {order.requesterName || 'Staff'}
-                                </td>
-                                <td className="p-4">
-                                    <div className="text-slate-200">{order.details}</div>
-                                    <div className="text-xs text-slate-500">Cant: {order.quantity || 1}</div>
-                                </td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs border ${getUrgencyColor(order.urgency)} uppercase font-bold tracking-wider`}>
-                                        {order.urgency === 'high' ? 'Alta' : order.urgency === 'medium' ? 'Media' : 'Baja'}
-                                    </span>
-                                </td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-1 rounded text-xs ${order.status === 'completed' ? 'text-green-400 bg-green-900/20' : 'text-slate-300 bg-slate-700'}`}>
-                                        {order.status === 'completed' ? 'Recibido' : 'Pendiente'}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right">
-                                    {order.status !== 'completed' && (
-                                        <button
-                                            onClick={() => handleStatusChange(order.id, 'completed')}
-                                            className="text-green-400 hover:text-green-300 p-2 hover:bg-green-900/20 rounded-lg transition-all"
-                                            title="Marcar como Recibido"
-                                        >
-                                            <CheckCircle size={18} />
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                        {supplyOrders.length === 0 && (
+            <Card padding="none" className="overflow-hidden border-ink-200 shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-ink-600 border-collapse">
+                        <thead className="bg-ink-50 text-ink-500 uppercase font-bold text-[11px] tracking-wider border-b border-ink-200">
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-slate-500">
-                                    No hay pedidos pendientes.
-                                </td>
+                                <th className="p-4">Fecha</th>
+                                <th className="p-4">Solicitante</th>
+                                <th className="p-4">Detalle</th>
+                                <th className="p-4">Urgencia</th>
+                                <th className="p-4">Estado</th>
+                                <th className="p-4 text-right">Acción</th>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="divide-y divide-ink-100 bg-white">
+                            {supplyOrders.map(order => (
+                                <tr key={order.id} className="hover:bg-ink-50/50 transition-colors">
+                                    <td className="p-4">
+                                        <div className="font-semibold text-ink-900">
+                                            {new Date(order.timestamp).toLocaleDateString()}
+                                        </div>
+                                        <div className="text-xs text-ink-400 flex items-center gap-1 mt-0.5">
+                                            <Clock size={12} />
+                                            {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 font-medium text-ink-700">
+                                        {order.requesterName || 'Staff'}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="text-ink-900 font-medium">{order.details}</div>
+                                        <div className="text-xs text-ink-400 mt-0.5">Cant: {order.quantity || 1}</div>
+                                    </td>
+                                    <td className="p-4">
+                                        <Badge tone={getUrgencyTone(order.urgency)}>
+                                            {getUrgencyLabel(order.urgency)}
+                                        </Badge>
+                                    </td>
+                                    <td className="p-4">
+                                        <Badge tone={order.status === 'completed' ? 'success' : 'gold'}>
+                                            {order.status === 'completed' ? 'Recibido' : 'Pendiente'}
+                                        </Badge>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        {order.status !== 'completed' && (
+                                            <button
+                                                onClick={() => handleStatusChange(order.id, 'completed')}
+                                                className="text-success-600 hover:text-success-700 p-2 hover:bg-success-50 rounded-lg transition-all"
+                                                title="Marcar como Recibido"
+                                            >
+                                                <CheckCircle size={18} />
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {supplyOrders.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" className="p-8 text-center text-ink-400 italic bg-ink-50/10">
+                                        No hay pedidos registrados.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
         </div>
     );
 }

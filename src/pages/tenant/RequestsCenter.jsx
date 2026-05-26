@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { ShoppingBag, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ShoppingBag, CheckCircle, Clock } from 'lucide-react';
+import { PageHeader, Card, Badge } from '../../components/ui';
 
 export default function RequestsCenter() {
     const { requests, tenantUsers, spaces, updateRow, addHorse, assignHorseToSpace, pricingPlans, sendNotification } = useData();
@@ -37,8 +38,6 @@ export default function RequestsCenter() {
         }
 
         // 3. Update Request Status
-        // Si no es reserva, consideramos que necesita pasar a staff o simplemente completarse.
-        // Simularemos que todo lo aprobado que no sea reserva pasa a "completado" por ahora.
         updateRow('REQUESTS', request.id, { status: request.type === 'reservation' ? 'approved' : 'completed' });
 
         // 4. Notify Client
@@ -55,60 +54,77 @@ export default function RequestsCenter() {
     };
 
     return (
-        <div className="pb-20">
-            <h2 className="text-2xl font-bold text-slate-100 mb-6 flex items-center gap-2">
-                <ShoppingBag className="text-gold-500" /> Centro de Solicitudes
-            </h2>
+        <div className="space-y-6 pb-20">
+            <PageHeader 
+                kicker="Administración"
+                title="Centro de Solicitudes"
+                subtitle="Aprobación y control de reservas de boxes y pedidos especiales de clientes"
+                icon={ShoppingBag}
+            />
 
             {pendingRequests.length === 0 ? (
-                <div className="text-center py-12 glass-card border border-slate-700">
-                    <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-                    <h3 className="text-lg font-medium text-white">¡Todo al día!</h3>
-                    <p className="text-slate-400">No hay solicitudes pendientes.</p>
+                <div className="text-center py-12 bg-white border border-ink-200 rounded-2xl shadow-sm max-w-lg mx-auto flex flex-col items-center justify-center">
+                    <CheckCircle className="h-12 w-12 text-success-600 mb-4" />
+                    <h3 className="text-lg font-bold text-ink-900">¡Todo al día!</h3>
+                    <p className="text-ink-500 text-sm mt-1">No hay solicitudes pendientes en este momento.</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-4 stagger-children">
                     {pendingRequests.map(req => (
-                        <div key={req.id} className="glass-card p-6 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded uppercase">
+                        <Card 
+                            key={req.id} 
+                            padding="normal" 
+                            className="border-ink-200 bg-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-250 hover:border-ink-300"
+                        >
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Badge tone="primary">
                                         {req.type === 'reservation' ? 'Reserva de Box' : req.type}
-                                    </span>
-                                    <span className="text-slate-500 text-sm flex items-center gap-1">
-                                        <Clock size={14} /> {new Date().toLocaleDateString()} {/* Mock date */}
+                                    </Badge>
+                                    <span className="text-ink-400 text-xs flex items-center gap-1">
+                                        <Clock size={12} /> {new Date().toLocaleDateString()}
                                     </span>
                                 </div>
-                                <h3 className="text-lg font-bold text-white mb-1">
+                                <h3 className="text-lg font-bold text-ink-900 leading-tight">
                                     {req.type === 'reservation' ? `Solicitud para ${getBoxName(req.boxId)}` : req.type}
                                 </h3>
-                                {req.details && <p className="text-slate-300 mb-1 text-sm italic">"{req.details}"</p>}
-                                <p className="text-slate-400 text-sm flex gap-2">
-                                    <span>Cliente: <span className="text-white">{getUserName(req.clientId)}</span></span>
-                                    {req.price > 0 && <span className="text-gold-500 font-bold ml-2">(${req.price.toLocaleString()})</span>}
-                                </p>
-                                {req.planId && (
-                                    <p className="text-gold-500 text-sm font-bold mt-1">
-                                        Plan Seleccionado: {pricingPlans.find(p => p.id === req.planId)?.name || 'Desconocido'}
+                                {req.details && (
+                                    <p className="text-ink-600 text-sm italic bg-ink-50 p-2.5 rounded-lg border border-ink-150">
+                                        "{req.details}"
                                     </p>
+                                )}
+                                <div className="text-ink-500 text-sm flex items-center gap-4 flex-wrap mt-1">
+                                    <div>
+                                        Cliente: <span className="text-ink-800 font-semibold">{getUserName(req.clientId)}</span>
+                                    </div>
+                                    {req.price > 0 && (
+                                        <div className="text-gold-600 font-bold bg-gold-50 px-2 py-0.5 rounded-md border border-gold-100">
+                                            ${req.price.toLocaleString()}
+                                        </div>
+                                    )}
+                                </div>
+                                {req.planId && (
+                                    <div className="text-xs font-bold text-primary-600 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded-md inline-block uppercase tracking-wider">
+                                        Plan: {pricingPlans.find(p => p.id === req.planId)?.name || 'Desconocido'}
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="flex gap-3 w-full md:w-auto">
+                            <div className="flex gap-3 w-full md:w-auto shrink-0 pt-2 md:pt-0">
                                 <button
                                     onClick={() => handleReject(req.id)}
-                                    className="flex-1 md:flex-none px-4 py-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors font-medium text-sm"
+                                    className="flex-1 md:flex-none btn-secondary text-danger-600 hover:bg-danger-50 hover:border-danger-200"
                                 >
                                     Rechazar
                                 </button>
                                 <button
                                     onClick={() => handleApprove(req)}
-                                    className="flex-1 md:flex-none px-6 py-2 bg-gold-500 hover:bg-gold-400 text-black font-bold rounded-lg transition-colors text-sm shadow-lg shadow-gold-500/20"
+                                    className="flex-1 md:flex-none btn-primary px-6"
                                 >
                                     Aprobar
                                 </button>
                             </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             )}
