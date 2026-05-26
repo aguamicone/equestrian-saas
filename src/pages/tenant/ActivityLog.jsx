@@ -35,7 +35,7 @@ export default function ActivityLog() {
 
     // Filter Logic
     const filteredLogs = logs.filter(log => {
-        const details = log.details || '';
+        const details = log.details || log.description || '';
         const staffName = log.staffName || log.userName || 'Sistema';
         const type = log.type || '';
         
@@ -116,7 +116,7 @@ export default function ActivityLog() {
                                         </div>
                                     </td>
                                     <td className="p-4">
-                                        <div className="text-ink-800 font-medium mb-1.5 leading-snug">{log.details || '-'}</div>
+                                        <div className="text-ink-800 font-medium mb-1.5 leading-snug">{log.details || log.description || '-'}</div>
                                         <Badge variant={logTypeToVariant(log.type)} size="sm">
                                             {logTypeToLabel(log.type)}
                                         </Badge>

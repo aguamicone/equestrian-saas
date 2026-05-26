@@ -132,9 +132,9 @@ export default function HorseDetails() {
     const horseLogs = logs.filter(l => l.horseId === id);
 
     const timeline = [
-        ...horseRequests.map(r => ({ ...r, _source: 'request', date: r.timestamp })),
-        ...horseLogs.map(l => ({ ...l, _source: 'log', date: l.timestamp }))
-    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+        ...horseRequests.map(r => ({ ...r, _source: 'request', date: r.timestamp, _ts: getTimestamp(r) })),
+        ...horseLogs.map(l => ({ ...l, _source: 'log', date: l.timestamp, _ts: getTimestamp(l) }))
+    ].sort((a, b) => b._ts - a._ts);
 
     // Filtered Timeline
     const displayedTimeline = timeline.filter(item => {
@@ -361,7 +361,7 @@ export default function HorseDetails() {
                             const isJump = item.type === 'show_jumping_log';
 
                             // Safe check string inclusions
-                            const safeDetails = item.details || '';
+                            const safeDetails = item.details || item.description || '';
 
                             return (
                                 <Card key={`${item._source}-${item.id}-${idx}`} padding="normal" className="mb-3 flex flex-col group border border-ink-100">
@@ -539,6 +539,13 @@ export default function HorseDetails() {
 }
 
 // Global scope helper for defensive checking
+function getTimestamp(item) {
+    if (!item.timestamp) return Date.now();
+    if (item.timestamp.toDate) return item.timestamp.toDate().getTime();
+    if (typeof item.timestamp === 'number') return item.timestamp;
+    return new Date(item.timestamp).getTime() || Date.now();
+}
+
 function isValidDate(d) {
     const timestamp = Date.parse(d);
     return !isNaN(timestamp);
