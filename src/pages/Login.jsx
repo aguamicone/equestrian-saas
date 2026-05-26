@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTenants } from '../services/mockFirebase';
-import { Layout, Building2, User } from 'lucide-react';
+import { User } from 'lucide-react';
+import { Card } from '../components/ui';
 
 export default function Login() {
-    const { login, currentUser, currentTenant, setTenant } = useAuth();
+    const { login, currentUser } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname || '/';
@@ -14,7 +14,6 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [selectedTenantId, setSelectedTenantId] = useState('');
 
     // Auto-redirect if already logged in
     useEffect(() => {
@@ -35,32 +34,32 @@ export default function Login() {
             await login(email, password);
         } catch (err) {
             console.error(err);
+            setError('Credenciales inválidas o error de conexión.');
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-            <div className="glass-panel p-8 w-full max-w-md">
+        <div className="min-h-screen flex items-center justify-center p-4">
+            <Card padding="normal" className="w-full max-w-md bg-white border-ink-200 shadow-xl rounded-3xl p-8 animate-in zoom-in duration-300">
                 <div className="text-center mb-8">
-                    <img src="/logo-app.jpg" alt="Logo" className="w-24 h-24 rounded-full border-4 border-gold-500 mx-auto mb-4 shadow-xl object-cover" />
-                    <h2 className="text-3xl font-bold text-slate-100">Equestrian SaaS</h2>
-                    <p className="text-slate-400 mt-2">Acceso a la Plataforma</p>
+                    <img src="/logo-app.jpg" alt="Logo" className="w-24 h-24 rounded-full border-4 border-primary-500 mx-auto mb-4 shadow-md object-cover" />
+                    <h2 className="text-3xl font-extrabold text-ink-900 leading-tight">Equestrian SaaS</h2>
+                    <p className="text-ink-500 font-medium mt-1">Acceso a la Plataforma</p>
                 </div>
 
-                {error && <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4 text-sm">{error}</div>}
+                {error && <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-2.5 rounded-xl mb-4 text-sm font-medium">{error}</div>}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Correo Electrónico</label>
+                        <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Correo Electrónico</label>
                         <div className="relative">
-                            <User className="absolute left-3 top-2.5 h-5 w-5 text-slate-500" />
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
                             <input
                                 type="email"
                                 required
-                                className="input-field pl-10"
+                                className="input-field pl-10 bg-white border-ink-200 text-ink-800 focus:border-primary-500 focus:ring-0"
                                 placeholder="usuario@ejemplo.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -69,52 +68,22 @@ export default function Login() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Contraseña</label>
+                        <label className="block text-xs uppercase font-bold text-ink-500 mb-1.5">Contraseña</label>
                         <input
                             type="password"
                             required
-                            className="input-field"
+                            className="input-field bg-white border-ink-200 text-ink-800 focus:border-primary-500 focus:ring-0"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
                     </div>
 
-                    <button disabled={loading} className="w-full btn-primary disabled:opacity-50">
-                        {loading ? 'Iniciando...' : 'Iniciar Sesión'}
-                    </button>
-
-                    <button type="button" onClick={() => {
-                        if (confirm('¿Reiniciar con datos frescos? Se borrarán tus cambios.')) {
-                            localStorage.clear();
-                            window.location.reload();
-                        }
-                    }} className="w-full text-xs text-slate-500 hover:text-red-400 mt-2 underline">
-                        Restaurar Datos de Fábrica
+                    <button disabled={loading} className="w-full btn-primary py-3 rounded-xl font-bold text-base shadow-sm mt-2">
+                        {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                     </button>
                 </form>
-
-                <div className="mt-8 pt-6 border-t border-slate-700 text-xs text-slate-500 relative">
-                    <p className="font-semibold mb-2">Credenciales Demo (Clave para todos: 123456):</p>
-                    <ul className="space-y-1">
-                        <li>Admin: admin@equus.com</li>
-                        <li>Client (Agustin): agustin@mail.com</li>
-                        <li>Client (Farid): farid@mail.com</li>
-                        <li>Staff: rodrigo@equus.com</li>
-                    </ul>
-
-                    {/* Temporary Firebase Seeder */}
-                    <button type="button" onClick={async () => {
-                        if (confirm('¿Popular Firebase con datos Mock de prueba? ¡ESTO ALTERARÁ TU BASE DE DATOS REAL!')) {
-                            const { executeFirebaseSeed } = await import('../utils/seedFirebase');
-                            const res = await executeFirebaseSeed();
-                            if(res.success) alert("Inyeccion completa. Inicia sesión con la nueva clave 123456");
-                        }
-                    }} className="absolute top-6 right-0 bg-red-900/40 text-red-500 px-2 py-1 rounded font-bold border border-red-500/50 hover:bg-red-500 hover:text-white transition-colors">
-                        ⚠ Inyectar Datos Firebase
-                    </button>
-                </div>
-            </div>
+            </Card>
         </div>
     );
 }
