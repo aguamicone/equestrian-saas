@@ -14,7 +14,8 @@ export default function TaskManager() {
     const { currentUser } = useAuth();
     const { notify } = useNotification();
     
-    const [selectedTask, setSelectedTask] = useState(null);
+    const [selectedTaskId, setSelectedTaskId] = useState(null);
+    const [selectedTaskType, setSelectedTaskType] = useState(null);
     const [activeTab, setActiveTab] = useState('routines');
     const [showDeriveModal, setShowDeriveModal] = useState(false);
     
@@ -31,38 +32,17 @@ export default function TaskManager() {
         return isPendingUnassigned || isMineActive;
     });
 
-    const handleTaskClick = async (item, type) => {
-        if (type === 'request') {
-            const reqRef = doc(db, 'REQUESTS', item.id);
-            const reqSnap = await getDoc(reqRef);
-            
-            if (!reqSnap.exists()) {
-                notify('Esta solicitud ya no existe.', 'info');
-                return;
-            }
-            
-            const data = reqSnap.data();
-            
-            // Caso 1: solicitud libre (pending_staff sin asignar) -> tomarla
-            if (data.status === 'pending_staff' && !data.assigneeId) {
-                await updateDoc(reqRef, {
-                    status: 'in_progress',
-                    assigneeId: currentUser.uid,
-                    takenAt: new Date().toISOString()
-                });
-            }
-            // Caso 2: ya es mia (in_progress + assigneeId === currentUser.uid) -> continuar sin modificar Firestore
-            else if (data.status === 'in_progress' && data.assigneeId === currentUser.uid) {
-                // No-op: solo abrir modal para continuar trabajando la solicitud
-            }
-            // Caso 3: cualquier otra cosa (asignada a otro, completed, cancelled, etc) -> bloquear
-            else {
-                notify('Esta solicitud ya fue tomada por otro caballerizo o no está disponible.', 'info');
-                return;
-            }
-        }
+    const liveSelectedTask = selectedTaskId
+        ? (selectedTaskType === 'request'
+            ? requests.find(r => r.id === selectedTaskId)
+            : routines.find(r => r.id === selectedTaskId))
+        : null;
 
-        setSelectedTask({ ...item, _taskType: type });
+    const selectedTask = liveSelectedTask ? { ...liveSelectedTask, _taskType: selectedTaskType } : null;
+
+    const handleTaskClick = (item, type) => {
+        setSelectedTaskId(item.id);
+        setSelectedTaskType(type);
         setShowDeriveModal(false);
     };
 
@@ -215,7 +195,7 @@ export default function TaskManager() {
                 <>
                     <TaskCompletionModal
                         isOpen={!!selectedTask && !showDeriveModal}
-                        onClose={() => { setSelectedTask(null); setShowDeriveModal(false); }}
+                        onClose={() => { setSelectedTaskId(null); setSelectedTaskType(null); setShowDeriveModal(false); }}
                         task={selectedTask}
                         onDeriveRequest={() => setShowDeriveModal(true)}
                     />
@@ -223,7 +203,7 @@ export default function TaskManager() {
                         isOpen={showDeriveModal}
                         onClose={() => setShowDeriveModal(false)}
                         task={selectedTask}
-                        onComplete={() => { setSelectedTask(null); setShowDeriveModal(false); }}
+                        onComplete={() => { setSelectedTaskId(null); setSelectedTaskType(null); setShowDeriveModal(false); }}
                     />
                 </>
             )}
