@@ -1,13 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Edit, Calendar, AlertCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Edit, Calendar, AlertCircle, Trash2 } from 'lucide-react';
+import EditChargeModal from '../../components/finanzas/modals/EditChargeModal';
 import { Card, PageHeader, Tabs, Badge, EmptyState, Modal } from '../../components/ui';
 import GenerarCargosMensualesModal from '../../components/finanzas/modals/GenerarCargosMensualesModal';
 import PricingPlanModal from '../../components/finanzas/modals/PricingPlanModal';
 import MarkAsPaidModal from '../../components/horses/modals/MarkAsPaidModal';
 
 export default function FinanceOverview() {
-    const { finances, pricingPlans, tenantUsers } = useData();
+    const { finances, pricingPlans, tenantUsers, deletePendingCharge } = useData();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Modal State
@@ -16,6 +17,13 @@ export default function FinanceOverview() {
     const [showRegistrarCobroGlobal, setShowRegistrarCobroGlobal] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
     const [chargeToMark, setChargeToMark] = useState(null);
+    const [chargeToEdit, setChargeToEdit] = useState(null);
+
+    const handleDeleteCharge = async (charge) => {
+        if (window.confirm(`¿Estás seguro de que deseas eliminar este cargo pendiente de $${charge.amount}?`)) {
+            await deletePendingCharge(charge.id);
+        }
+    };
 
     // Calculations
     const income = useMemo(() => 
@@ -168,12 +176,28 @@ export default function FinanceOverview() {
                                                     </td>
                                                     <td className="p-4 text-right">
                                                         {isIncome && isPending ? (
-                                                            <button
-                                                                onClick={() => setChargeToMark(item)}
-                                                                className="text-xs text-primary-750 font-bold hover:underline bg-primary-50/50 hover:bg-primary-50 px-2.5 py-1.5 rounded-md border border-primary-200 transition-all"
-                                                            >
-                                                                Registrar Pago
-                                                            </button>
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => setChargeToMark(item)}
+                                                                    className="text-xs text-primary-750 font-bold hover:underline bg-primary-50/50 hover:bg-primary-50 px-2.5 py-1.5 rounded-md border border-primary-200 transition-all whitespace-nowrap"
+                                                                >
+                                                                    Registrar Pago
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setChargeToEdit(item)}
+                                                                    className="p-1.5 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-md transition-colors"
+                                                                    title="Editar Cargo"
+                                                                >
+                                                                    <Edit size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteCharge(item)}
+                                                                    className="p-1.5 text-ink-400 hover:text-danger-600 hover:bg-danger-50 rounded-md transition-colors"
+                                                                    title="Eliminar Cargo"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
                                                         ) : (
                                                             <span className="text-xs text-ink-400 italic">-</span>
                                                         )}
@@ -285,6 +309,12 @@ export default function FinanceOverview() {
                     onClose={() => setChargeToMark(null)}
                 />
             )}
+
+            <EditChargeModal
+                isOpen={!!chargeToEdit}
+                onClose={() => setChargeToEdit(null)}
+                charge={chargeToEdit}
+            />
         </div>
     );
 }

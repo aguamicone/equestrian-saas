@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { createUserWithEmailAndPassword, signOut, deleteUser } from 'firebase/auth';
@@ -796,6 +796,7 @@ export function DataProvider({ children }) {
 
             batch.update(horseRef, {
                 assignedPlanIds: arrayUnion(planId),
+                [`planPricesSnapshot.${planId}`]: plan.price,
                 updatedAt: serverTimestamp()
             });
 
@@ -840,6 +841,7 @@ export function DataProvider({ children }) {
 
             batch.update(horseRef, {
                 assignedPlanIds: arrayRemove(planId),
+                [`planPricesSnapshot.${planId}`]: deleteField(),
                 updatedAt: serverTimestamp()
             });
 
@@ -1569,7 +1571,7 @@ export function DataProvider({ children }) {
                             horseId: horse.id,
                             planId: plan.id,
                             planName: plan.name,
-                            planPrice: plan.price,
+                            planPrice: horse.planPricesSnapshot?.[plan.id] ?? plan.price,
                             ownerId: horse.ownerId || null
                         });
                     }
@@ -1668,6 +1670,86 @@ export function DataProvider({ children }) {
         return status;
     };
 
+    const editPendingCharge = async (chargeId, { amount, description }) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        try {
+            const chargeRef = doc(db, 'FINANCES', chargeId);
+            const chargeSnap = await getDoc(chargeRef);
+            if (!chargeSnap.exists()) return { success: false, error: 'Cargo no encontrado.' };
+
+            const data = chargeSnap.data();
+            if (data.status !== 'pending' && data.status !== 'overdue') {
+                return { success: false, error: 'Solo se pueden editar cargos pendientes.' };
+            }
+
+            const batch = writeBatch(db);
+            batch.update(chargeRef, {
+                amount: Number(amount),
+                description: description.trim(),
+                updatedAt: serverTimestamp(),
+                updatedBy: currentUser.uid
+            });
+
+            const logRef = doc(collection(db, 'LOGS'));
+            batch.set(logRef, {
+                type: 'charge_edited',
+                tenantId: currentTenant.id,
+                chargeId,
+                oldAmount: data.amount,
+                newAmount: Number(amount),
+                oldDescription: data.description,
+                newDescription: description.trim(),
+                by: currentUser.uid,
+                staffName: currentUser.displayName || 'Administrador',
+                timestamp: serverTimestamp()
+            });
+
+            await batch.commit();
+            notify('Cargo actualizado', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error al editar cargo:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deletePendingCharge = async (chargeId) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        try {
+            const chargeRef = doc(db, 'FINANCES', chargeId);
+            const chargeSnap = await getDoc(chargeRef);
+            if (!chargeSnap.exists()) return { success: false, error: 'Cargo no encontrado.' };
+
+            const data = chargeSnap.data();
+            if (data.status !== 'pending' && data.status !== 'overdue') {
+                return { success: false, error: 'Solo se pueden eliminar cargos pendientes.' };
+            }
+
+            const batch = writeBatch(db);
+            batch.delete(chargeRef);
+
+            const logRef = doc(collection(db, 'LOGS'));
+            batch.set(logRef, {
+                type: 'charge_deleted',
+                tenantId: currentTenant.id,
+                chargeId,
+                amount: data.amount,
+                description: data.description,
+                horseId: data.horseId || null,
+                by: currentUser.uid,
+                staffName: currentUser.displayName || 'Administrador',
+                timestamp: serverTimestamp()
+            });
+
+            await batch.commit();
+            notify('Cargo eliminado', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error al eliminar cargo:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
@@ -1684,7 +1766,7 @@ export function DataProvider({ children }) {
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
         assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges, deleteClientCascading,
-        settlePendingCharge, settleMultiplePendingCharges,
+        settlePendingCharge, settleMultiplePendingCharges, editPendingCharge, deletePendingCharge,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
