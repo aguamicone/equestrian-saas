@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Square, CheckSquare, Clock, MapPin, Zap } from 'lucide-react';
+import { Square, CheckSquare, Clock, Zap } from 'lucide-react';
+import { Card } from '../../components/ui';
 
 export default function StaffDashboard() {
     const [tasks, setTasks] = useState([
@@ -18,69 +19,79 @@ export default function StaffDashboard() {
     const progress = Math.round((completedCount / tasks.length) * 100);
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Header Banner - Institutional Premium */}
-            <div className="w-full relative rounded-3xl overflow-hidden glass-card">
-                <div className="absolute inset-0 bg-gold-500/5 mix-blend-overlay"></div>
-                <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-end min-h-[140px]">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-md leading-tight">
+        <div className="space-y-6 pb-20 max-w-xl mx-auto">
+            {/* Header Banner - Cielo y Campo Style */}
+            <div className="w-full relative rounded-2xl overflow-hidden bg-gradient-to-r from-primary-500 to-sky-500 text-white shadow-md flex flex-col justify-end min-h-[140px] p-6 sm:p-8">
+                <div className="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
+                <div className="relative z-10 w-full">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-sm leading-tight">
                         Modo Operativo
                     </h2>
-                    <p className="text-sm text-gold-500 font-bold mt-1 uppercase tracking-widest">Resumen de Tu Jornada</p>
-                    <div className="mt-4 w-full h-2 glass-card rounded-full overflow-hidden">
-                        <div className="h-full bg-gold-500 transition-all duration-1000 ease-out relative" style={{ width: `${progress}%` }}>
+                    <p className="text-xs font-bold text-sky-100 uppercase tracking-widest mt-1">Resumen de Tu Jornada</p>
+                    <div className="mt-4 w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-full bg-white transition-all duration-1000 ease-out relative" style={{ width: `${progress}%` }}>
                             <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                         </div>
                     </div>
-                    <p className="text-[10px] right-8 top-8 absolute font-bold text-slate-400 uppercase tracking-widest">{completedCount} de {tasks.length} cerradas</p>
+                    <div className="flex justify-between items-center mt-2.5">
+                        <span className="text-[10px] font-bold text-sky-100 uppercase tracking-widest">Progreso del día</span>
+                        <span className="text-[10px] font-bold text-sky-100 uppercase tracking-widest">{completedCount} de {tasks.length} cerradas ({progress}%)</span>
+                    </div>
                 </div>
             </div>
 
             {/* Task List */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2 px-1">
-                    <Zap size={16} className="text-gold-500"/>
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">Cola de Tareas</h3>
+                    <Zap size={16} className="text-primary-500"/>
+                    <h3 className="text-xs font-bold text-ink-500 uppercase tracking-widest">Cola de Tareas</h3>
                 </div>
 
                 {tasks.map(task => (
-                    <div
+                    <Card
                         key={task.id}
                         onClick={() => toggleTask(task.id)}
-                        className={`glass-card p-4 cursor-pointer transition-all duration-300 group ${task.completed
-                                ? 'grayscale-[50%] opacity-60 bg-slate-900/40 border-slate-800'
-                                : 'hover:border-gold-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.1)] hover:-translate-y-1'
+                        padding="normal"
+                        className={`cursor-pointer transition-all duration-200 group border-ink-200 shadow-sm ${task.completed
+                                ? 'opacity-60 bg-ink-50/50 border-ink-150 hover:bg-ink-50'
+                                : 'hover:border-primary-400 hover:shadow-md hover:-translate-y-0.5 bg-white'
                             }`}
                     >
                         <div className="flex items-start gap-4 relative z-10">
-                            <div className={`mt-0.5 transition-transform duration-300 ${task.completed ? 'text-slate-600 scale-110' : 'text-gold-500 group-hover:scale-110 group-hover:text-gold-400'}`}>
+                            <div className={`mt-0.5 transition-transform duration-200 shrink-0 ${task.completed ? 'text-ink-400 scale-100' : 'text-primary-500 group-hover:scale-105 group-hover:text-primary-600'}`}>
                                 {task.completed ? <CheckSquare size={24} /> : <Square size={24} />}
                             </div>
                             <div className="flex-1">
-                                <p className={`font-bold text-lg leading-tight mb-2 transition-colors ${task.completed ? 'text-slate-500 line-through' : 'text-slate-100 group-hover:text-white'}`}>
+                                <p className={`font-bold text-base leading-snug mb-1.5 transition-colors ${task.completed ? 'text-ink-400 line-through' : 'text-ink-800 group-hover:text-primary-700'}`}>
                                     {task.text}
                                 </p>
                                 <div className="flex items-center gap-3">
-                                    <span className={`text-[11px] font-bold flex items-center gap-1 uppercase tracking-wider ${task.completed ? 'text-slate-600' : 'text-slate-400'}`}>
+                                    <span className={`text-[11px] font-bold flex items-center gap-1 uppercase tracking-wider ${task.completed ? 'text-ink-400' : 'text-ink-500'}`}>
                                         <Clock size={12}/> {task.time}
                                     </span>
                                     {task.loc && (
-                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider border ${task.completed ? 'bg-slate-800/50 text-slate-600 border-slate-700/50' : task.loc === 'piquete' ? 'bg-green-500/10 text-green-400 border-green-500/30' : task.loc === 'circular' ? 'bg-orange-500/10 text-orange-400 border-orange-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider border ${task.completed 
+                                            ? 'bg-ink-100 text-ink-500 border-ink-200' 
+                                            : task.loc === 'piquete' 
+                                                ? 'bg-success-50 text-success-700 border-success-200' 
+                                                : task.loc === 'circular' 
+                                                    ? 'bg-warning-50 text-warning-700 border-warning-200' 
+                                                    : 'bg-primary-50 text-primary-700 border-primary-200'}`}>
                                             {task.loc}
                                         </span>
                                     )}
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 ))}
             </div>
             
-            <div className="mt-8 p-6 glass-panel border-gold-500/20 text-center relative overflow-hidden group">
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-gold-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-1000 group-hover:bg-gold-500/20"></div>
-                <h4 className="text-white font-bold mb-2">Sincronización Inteligente</h4>
-                <p className="text-xs text-slate-400 font-medium px-4">Todas tus tareas son enviadas al control de administración local en tiempo real.</p>
-            </div>
+            <Card padding="normal" className="mt-8 bg-ink-50/30 border border-ink-200 text-center relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                <h4 className="text-ink-900 font-bold mb-2">Sincronización Inteligente</h4>
+                <p className="text-xs text-ink-550 font-medium px-4">Todas tus tareas son enviadas al control de administración en tiempo real.</p>
+            </Card>
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { Stethoscope, Apple, Activity, AlertTriangle } from 'lucide-react';
+import { Card } from '../../components/ui';
 
 export default function QuickLog() {
     const { horses, addLog } = useData();
@@ -11,7 +12,6 @@ export default function QuickLog() {
 
     const handleLog = (type) => {
         setLogType(type);
-        // Auto-focus logic could go here
     };
 
     const handleSubmit = (e) => {
@@ -31,66 +31,80 @@ export default function QuickLog() {
     };
 
     const categories = [
-        { id: 'feed', label: 'Alimento', icon: <Apple size={24} />, color: 'text-green-400 bg-green-500/10' },
-        { id: 'meds', label: 'Veterinaria', icon: <Stethoscope size={24} />, color: 'text-red-400 bg-red-500/10' },
-        { id: 'exercise', label: 'Ejercicio', icon: <Activity size={24} />, color: 'text-blue-400 bg-blue-500/10' },
-        { id: 'incident', label: 'Incidente', icon: <AlertTriangle size={24} />, color: 'text-yellow-400 bg-yellow-500/10' },
+        { id: 'feed', label: 'Alimento', icon: <Apple size={24} />, color: 'text-success-600 bg-success-50 border-success-100' },
+        { id: 'meds', label: 'Veterinaria', icon: <Stethoscope size={24} />, color: 'text-danger-600 bg-danger-50 border-danger-100' },
+        { id: 'exercise', label: 'Ejercicio', icon: <Activity size={24} />, color: 'text-primary-600 bg-primary-50 border-primary-100' },
+        { id: 'incident', label: 'Incidente', icon: <AlertTriangle size={24} />, color: 'text-warning-600 bg-warning-50 border-warning-100' },
     ];
 
     return (
-        <div className="px-1">
-            <h2 className="text-xl font-bold text-slate-100 mb-4">Registro Rápido</h2>
+        <div className="max-w-md mx-auto space-y-6 pb-20">
+            <div className="text-left">
+                <h2 className="text-2xl font-bold text-ink-900">Registro Rápido</h2>
+                <p className="text-ink-500 text-sm mt-1">Registra eventos de alimentación, veterinaria, ejercicio o incidentes en caliente.</p>
+            </div>
 
-            {successMsg && <div className="mb-4 p-3 bg-green-500 text-slate-900 font-bold rounded-lg text-center animate-pulse">{successMsg}</div>}
+            {successMsg && (
+                <div className="p-3 bg-success-50 border border-success-200 text-success-800 font-bold rounded-xl text-center shadow-sm animate-pulse">
+                    {successMsg}
+                </div>
+            )}
 
-            <form onSubmit={handleSubmit}>
-                <div className="mb-6">
-                    <label className="text-sm text-slate-400 mb-2 block">Seleccionar Caballo</label>
+            <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-2xl border border-ink-200 shadow-sm">
+                <div>
+                    <label className="text-xs uppercase font-bold text-ink-500 mb-1.5 block">Seleccionar Caballo</label>
                     <select
-                        className="input-field p-3"
+                        className="input-field p-3 bg-white border-ink-200 text-ink-750 focus:border-primary-500 focus:ring-0"
                         value={selectedHorseId}
                         onChange={(e) => setSelectedHorseId(e.target.value)}
                         required
                     >
-                        <option value="">-- Elegir --</option>
+                        <option value="">-- Elegir caballo --</option>
                         {horses.map(h => (
                             <option key={h.id} value={h.id}>{h.name}</option>
                         ))}
                     </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                    {categories.map(cat => (
-                        <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => handleLog(cat.id)}
-                            className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${logType === cat.id
-                                    ? 'bg-slate-700 border-gold-500 ring-1 ring-gold-500'
-                                    : 'bg-slate-800 border-slate-700 opacity-80 hover:opacity-100'
-                                }`}
-                        >
-                            <div className={`p-2 rounded-full ${cat.color}`}>
-                                {cat.icon}
-                            </div>
-                            <span className="text-sm font-medium text-slate-200">{cat.label}</span>
-                        </button>
-                    ))}
+                <div>
+                    <label className="text-xs uppercase font-bold text-ink-500 mb-1.5 block">Categoría de Evento</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {categories.map(cat => {
+                            const isSelected = logType === cat.id;
+                            return (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => handleLog(cat.id)}
+                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all shadow-sm ${logType === cat.id
+                                            ? 'bg-primary-50 border-primary-400 ring-2 ring-primary-100'
+                                            : 'bg-white border-ink-200 hover:bg-ink-50/50'
+                                        }`}
+                                >
+                                    <div className={`p-2.5 rounded-full border ${cat.color}`}>
+                                        {cat.icon}
+                                    </div>
+                                    <span className={`text-sm font-bold ${isSelected ? 'text-primary-700' : 'text-ink-600'}`}>{cat.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {logType && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div>
-                            <label className="text-sm text-slate-400 mb-2 block">Detalles Adicionales (Opcional)</label>
+                            <label className="text-xs uppercase font-bold text-ink-500 mb-1.5 block">Detalles Adicionales (Opcional)</label>
                             <textarea
-                                className="input-field"
-                                placeholder="Detalles específicos..."
+                                className="input-field bg-white border-ink-200 text-ink-800"
+                                placeholder="Ej: Ración de avena incrementada, herradura floja..."
                                 value={details}
                                 onChange={(e) => setDetails(e.target.value)}
+                                rows="3"
                             />
                         </div>
-                        <button className="w-full btn-primary py-3 rounded-xl text-lg shadow-lg shadow-gold-500/20">
-                            Confirmar
+                        <button className="w-full btn-primary py-3 rounded-xl shadow-sm text-base font-bold">
+                            Confirmar Registro
                         </button>
                     </div>
                 )}
