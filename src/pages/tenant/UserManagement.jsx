@@ -7,16 +7,31 @@ import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCa
 
 export default function UserManagement() {
     const { currentUser } = useAuth();
-    const { addUser, tenantUsers } = useData(); // Use tenantUsers from context which is reactive
+    const { addUser, tenantUsers, deleteClientCascading, horses, equipmentItems, finances, requests } = useData();
     const [searchTerm, setSearchTerm] = useState('');
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
     const [showAltaClienteCaballo, setShowAltaClienteCaballo] = useState(false);
+    const [clientToDelete, setClientToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [newName, setNewName] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [newRole, setNewRole] = useState('staff');
     const [newPhone, setNewPhone] = useState('');
+
+    const confirmDeleteClient = async () => {
+        if (!clientToDelete) return;
+        setIsDeleting(true);
+        try {
+            await deleteClientCascading(clientToDelete.uid);
+            setClientToDelete(null);
+        } catch (err) {
+            console.error('Error al borrar cliente:', err);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const handleCreateUser = (e) => {
         e.preventDefault();
@@ -96,7 +111,16 @@ export default function UserManagement() {
                                     </span>
                                 </td>
                                 <td className="p-4 text-right">
-                                    <span className="text-xs text-slate-600">Editar (Próximamente)</span>
+                                    {user.role === 'client' ? (
+                                        <button
+                                            onClick={() => setClientToDelete(user)}
+                                            className="text-xs text-red-400 hover:text-red-300 font-bold hover:underline bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-md border border-red-500/30 transition-all"
+                                        >
+                                            Eliminar
+                                        </button>
+                                    ) : (
+                                        <span className="text-xs text-slate-600">Editar (Próximamente)</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -186,6 +210,68 @@ export default function UserManagement() {
                     isOpen={showAltaClienteCaballo}
                     onClose={() => setShowAltaClienteCaballo(false)}
                 />
+            )}
+
+            {/* Modal de confirmación de eliminación en cascada */}
+            {clientToDelete && (
+                <Modal
+                    open={!!clientToDelete}
+                    onClose={() => setClientToDelete(null)}
+                    title={`¿Eliminar a ${clientToDelete.displayName}?`}
+                    subtitle="Esta acción es irreversible y realizará un borrado en cascada."
+                    size="md"
+                    footer={
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setClientToDelete(null)}
+                                className="btn-secondary"
+                                disabled={isDeleting}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteClient}
+                                className="btn-danger"
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Eliminando...' : 'Eliminar definitivamente'}
+                            </button>
+                        </div>
+                    }
+                >
+                    <div className="space-y-4 text-sm text-slate-300">
+                        <p className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs">
+                            ⚠️ Se eliminará la cuenta del cliente y todos los datos asociados listados a continuación. Los boxes que ocupen sus caballos quedarán libres automáticamente.
+                        </p>
+                        
+                        <div className="space-y-2 bg-slate-900/50 p-4 rounded-xl border border-slate-700 font-medium">
+                            <div className="flex justify-between">
+                                <span>Caballos asociados:</span>
+                                <span className="text-white font-bold">
+                                    {(horses || []).filter(h => h.ownerId === clientToDelete.uid).length}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Equipamiento / Monturas:</span>
+                                <span className="text-white font-bold">
+                                    {(equipmentItems || []).filter(eq => eq.ownerId === clientToDelete.uid).length}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Movimientos financieros (Cuenta corriente):</span>
+                                <span className="text-white font-bold">
+                                    {(finances || []).filter(f => f.clientId === clientToDelete.uid).length}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Solicitudes registradas:</span>
+                                <span className="text-white font-bold">
+                                    {(requests || []).filter(r => r.clientId === clientToDelete.uid).length}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </div>
     );

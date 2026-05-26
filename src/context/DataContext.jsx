@@ -294,11 +294,16 @@ export function DataProvider({ children }) {
                 ...requestData
             });
             
-            // Notificar a admins (preservar comportamiento original)
-            // NOTA: 'ALL_ADMINS' sigue siendo string literal roto, pero es out of scope de D7.
-            // El bug de notificacion al admin para supply requests NO se corrige en D7 (no era objetivo).
-            // TR-30 candidato: corregir notificacion de supply requests al admin del tenant.
-            sendNotification('ALL_ADMINS', `Nuevo pedido de insumos de ${currentUser?.displayName || 'Personal'}`, 'info');
+            // Notificar a todos los administradores del tenant en lugar del literal roto 'ALL_ADMINS'
+            const adminList = tenantUsers.filter(u => u.role === 'tenantAdmin');
+            const notifPromises = adminList.map(admin =>
+                sendNotification(
+                    admin.uid,
+                    `Nuevo pedido de insumos de ${currentUser?.displayName || 'Personal'}`,
+                    'info'
+                )
+            );
+            await Promise.all(notifPromises);
             
             notify('Pedido de insumos enviado', 'success');
             
@@ -432,7 +437,15 @@ export function DataProvider({ children }) {
             status: 'pending',
             ...requestData
         });
-        sendNotification('ALL_ADMINS', `Nuevo pedido de insumos de ${currentUser?.displayName || 'Personal'}`, 'info');
+        const adminList = tenantUsers.filter(u => u.role === 'tenantAdmin');
+        const notifPromises = adminList.map(admin =>
+            sendNotification(
+                admin.uid,
+                `Nuevo pedido de insumos de ${currentUser?.displayName || 'Personal'}`,
+                'info'
+            )
+        );
+        await Promise.all(notifPromises);
         notify('Solicitud enviada exitosamente', 'success');
     };
 
@@ -1271,6 +1284,95 @@ export function DataProvider({ children }) {
         }
     };
 
+    const deleteClientCascading = async (clientUid) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Delete user from USERS
+            batch.delete(doc(db, 'USERS', clientUid));
+
+            // 2. Delete EQUIPMENT_ITEMS
+            const clientEquipment = equipmentItems.filter(item => item.ownerId === clientUid);
+            clientEquipment.forEach(item => {
+                batch.delete(doc(db, 'EQUIPMENT_ITEMS', item.id));
+            });
+
+            // 3. Delete REQUESTS
+            const clientRequests = requests.filter(req => req.clientId === clientUid);
+            clientRequests.forEach(req => {
+                batch.delete(doc(db, 'REQUESTS', req.id));
+            });
+
+            // 4. Delete FINANCES
+            const clientFinances = finances.filter(fin => fin.clientId === clientUid);
+            clientFinances.forEach(fin => {
+                batch.delete(doc(db, 'FINANCES', fin.id));
+            });
+
+            // 5. Delete NOTIFICATIONS
+            const clientNotifications = notifications.filter(notif => notif.recipientId === clientUid);
+            clientNotifications.forEach(notif => {
+                batch.delete(doc(db, 'NOTIFICATIONS', notif.id));
+            });
+
+            // 6. Horses and their sub-resources
+            const clientHorses = horses.filter(h => h.ownerId === clientUid);
+            clientHorses.forEach(horse => {
+                // Release space
+                const space = spaces.find(s => s.horseId === horse.id);
+                if (space) {
+                    batch.update(doc(db, 'SPACES', space.id), {
+                        status: 'available',
+                        horseId: null
+                    });
+                }
+
+                // Delete horse document
+                batch.delete(doc(db, 'HORSES', horse.id));
+
+                // Delete health records
+                const records = healthRecords.filter(r => r.horseId === horse.id);
+                records.forEach(r => {
+                    batch.delete(doc(db, 'HEALTH_RECORDS', r.id));
+                });
+
+                // Delete health booklet
+                const booklet = healthBooklets.find(b => b.horseId === horse.id);
+                if (booklet) {
+                    batch.delete(doc(db, 'HORSE_HEALTH_BOOKLETS', booklet.id));
+                }
+
+                // Delete logs of the horse
+                const horseLogs = logs.filter(l => l.horseId === horse.id);
+                horseLogs.forEach(l => {
+                    batch.delete(doc(db, 'LOGS', l.id));
+                });
+            });
+
+            // 7. Audit Log
+            const logRef = doc(collection(db, 'LOGS'));
+            batch.set(logRef, {
+                tenantId: currentTenant.id,
+                timestamp: new Date().toISOString(),
+                staffName: currentUser?.displayName || 'Sistema',
+                type: 'client_deleted_cascade',
+                clientUid,
+                details: `Baja de cliente ${clientUid} con borrado en cascada de equipamiento (${clientEquipment.length} items), caballos (${clientHorses.length}) y registros financieros/solicitudes.`
+            });
+
+            await batch.commit();
+            notify('Cliente y todos sus datos relacionados eliminados', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error en baja en cascada de cliente:', error);
+            notify('Error al eliminar el cliente y sus datos', 'error');
+            return { success: false, error: error.message };
+        }
+    };
+
     const generateMonthlyCharges = async ({ month }) => {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
         if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
@@ -1419,7 +1521,7 @@ export function DataProvider({ children }) {
         getLogsForHorse, getFinanceForUser, getPendingChargesForUser, getPaidChargesForUser,
         
         releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
-        assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges,
+        assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges, deleteClientCascading,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
