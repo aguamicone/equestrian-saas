@@ -22,6 +22,7 @@ import ReleaseHorseModal from './modals/ReleaseHorseModal';
 import SpaceAdminMenu from './modals/SpaceAdminMenu';
 import ReserveSpaceModal from './modals/ReserveSpaceModal';
 import EditSpaceModal from './modals/EditSpaceModal';
+import AssignHorseModal from './modals/AssignHorseModal';
 
 // ====== Filtros disponibles ======
 const FILTERS = [
@@ -553,6 +554,14 @@ export default function SpaceGrid() {
           space={selectedSpace}
           onClose={closeAllModals}
           onSaved={() => {}}
+        />
+      )}
+
+      {/* ===== AssignHorseModal ===== */}
+      {modalType === 'assign' && selectedSpace && (
+        <AssignHorseModal
+          space={selectedSpace}
+          onClose={closeAllModals}
         />
       )}
     </div>
