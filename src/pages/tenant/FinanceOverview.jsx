@@ -145,7 +145,7 @@ export default function FinanceOverview() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-ink-100 text-ink-900">
-                                        {finances.map(item => {
+                                        {[...finances].sort((a, b) => b.date.localeCompare(a.date)).map(item => {
                                             const isIncome = item.type === 'income';
                                             const isPayment = item.type === 'payment';
                                             const isPending = item.status === 'pending' || item.status === 'overdue';
