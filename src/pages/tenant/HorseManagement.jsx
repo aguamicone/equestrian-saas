@@ -1,18 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import { Search, Plus, MoreVertical, LayoutList } from 'lucide-react';
+import { Search, Plus, MoreVertical, LayoutList, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+
 import { PageHeader, Card, DataTable, Badge, EmptyState } from '../../components/ui';
 import HorseDetailModal from '../../components/horses/modals/HorseDetailModal';
 import HorseActionsMenu from '../../components/horses/modals/HorseActionsMenu';
 import GestionarPlanesModal from '../../components/horses/modals/GestionarPlanesModal';
-import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCaballoModal';
+import CreateHorseModal from '../../components/horses/modals/CreateHorseModal';
+
 
 export default function HorseManagement() {
     const { horses, finances, pricingPlans, spaces, tenantUsers, archiveHorse, updateHorseStatus } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterBy, setFilterBy] = useState('active'); // 'active' | 'all' | 'archived' | 'no-plan' | 'debt'
     const [selectedHorse, setSelectedHorse] = useState(null);
-    const [showAltaClienteCaballo, setShowAltaClienteCaballo] = useState(false);
+    const [showCreateHorseModal, setShowCreateHorseModal] = useState(false);
+
 
     // States for contextual menu positioning and target horse
     const [anchorRect, setAnchorRect] = useState(null);
@@ -94,7 +97,8 @@ export default function HorseManagement() {
     }, [horses, filterBy, searchTerm, usersById, horseDebtMap]);
 
     // Action handlers
-    const handleAddHorse = () => setShowAltaClienteCaballo(true);
+    const handleAddHorse = () => setShowCreateHorseModal(true);
+
     
     const handleMenuClick = (e, horse) => {
         e.stopPropagation();
@@ -250,30 +254,65 @@ export default function HorseManagement() {
                 kicker="Gestión"
                 title="Caballos"
                 subtitle={`${stats.total} caballos · ${stats.active} activos`}
-                action={{
-                    label: "Nuevo caballo",
-                    icon: Plus,
-                    onClick: handleAddHorse
-                }}
+                actions={
+                    <button 
+                        onClick={handleAddHorse}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <Plus size={18} />
+                        Nuevo caballo
+                    </button>
+                }
             />
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card variant="default" padding="sm" className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-primary-600 uppercase tracking-wider">Total</span>
-                    <span className="text-2xl font-display font-medium text-ink-900">{stats.total}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <Card padding="normal">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                            <LayoutList size={20} className="text-primary-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-display font-medium text-ink-900">{stats.total}</div>
+                            <div className="text-xs text-ink-500 uppercase tracking-wider font-medium">Total caballos</div>
+                        </div>
+                    </div>
                 </Card>
-                <Card variant="default" padding="sm" className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-success-600 uppercase tracking-wider">Activos</span>
-                    <span className="text-2xl font-display font-medium text-ink-900">{stats.active}</span>
+
+                <Card padding="normal">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-success-50 flex items-center justify-center flex-shrink-0">
+                            <CheckCircle2 size={20} className="text-success-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-display font-medium text-ink-900">{stats.active}</div>
+                            <div className="text-xs text-ink-500 uppercase tracking-wider font-medium">Activos</div>
+                        </div>
+                    </div>
                 </Card>
-                <Card variant="default" padding="sm" className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-ink-500 uppercase tracking-wider">Sin plan</span>
-                    <span className="text-2xl font-display font-medium text-ink-900">{stats.noPlan}</span>
+
+                <Card padding="normal">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-ink-50 flex items-center justify-center flex-shrink-0">
+                            <AlertCircle size={20} className="text-ink-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-display font-medium text-ink-900">{stats.noPlan}</div>
+                            <div className="text-xs text-ink-500 uppercase tracking-wider font-medium">Sin plan</div>
+                        </div>
+                    </div>
                 </Card>
-                <Card variant="default" padding="sm" className="flex flex-col gap-1">
-                    <span className={`text-xs font-medium uppercase tracking-wider ${stats.withDebt > 0 ? 'text-danger-600' : 'text-ink-500'}`}>Con deuda</span>
-                    <span className={`text-2xl font-display font-medium ${stats.withDebt > 0 ? 'text-danger-600' : 'text-ink-900'}`}>{stats.withDebt}</span>
+
+                <Card padding="normal">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${stats.withDebt > 0 ? 'bg-danger-50' : 'bg-success-50'}`}>
+                            <AlertTriangle size={20} className={stats.withDebt > 0 ? 'text-danger-600' : 'text-success-600'} />
+                        </div>
+                        <div>
+                            <div className={`text-2xl font-display font-medium ${stats.withDebt > 0 ? 'text-danger-600' : 'text-ink-900'}`}>{stats.withDebt}</div>
+                            <div className="text-xs text-ink-500 uppercase tracking-wider font-medium">Con deuda</div>
+                        </div>
+                    </div>
                 </Card>
             </div>
 
@@ -381,11 +420,11 @@ export default function HorseManagement() {
                 />
             )}
 
-            {/* Nuevo Cliente + Caballos Modal */}
-            {showAltaClienteCaballo && (
-                <AltaClienteCaballoModal
-                    isOpen={showAltaClienteCaballo}
-                    onClose={() => setShowAltaClienteCaballo(false)}
+            {/* Nuevo Caballo Modal */}
+            {showCreateHorseModal && (
+                <CreateHorseModal
+                    isOpen={showCreateHorseModal}
+                    onClose={() => setShowCreateHorseModal(false)}
                 />
             )}
         </>

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { getCollection } from '../../services/mockFirebase'; // Use dynamic collection
-import { Search, UserCog, User, Shield, Plus, X } from 'lucide-react';
+import { Search, UserCog, User, Shield, Plus } from 'lucide-react';
 import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCaballoModal';
-import Modal from '../../components/ui/Modal';
+import { PageHeader, Card, Badge, Modal } from '../../components/ui';
 
 export default function UserManagement() {
     const { currentUser } = useAuth();
@@ -52,157 +51,184 @@ export default function UserManagement() {
         setNewRole('staff');
     };
 
-    // Use tenantUsers from context instead of local state for reactivity
+    // Filter
     const filteredUsers = tenantUsers.filter(u =>
         u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
-        <div className="pb-20">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                    <UserCog className="text-gold-500" /> Gestión de Usuarios
-                </h2>
-                <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-                    <Plus size={18} /> Nuevo Usuario
-                </button>
-            </div>
+        <div className="space-y-6 pb-20">
+            <PageHeader 
+                kicker="Panel de administración"
+                title="Gestión de Usuarios"
+                subtitle="Control de accesos y perfiles de clientes y personal"
+                icon={UserCog}
+                actions={
+                    <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+                        <Plus size={18} /> Nuevo Usuario
+                    </button>
+                }
+            />
 
             {/* Search */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-2.5 h-5 w-5 text-slate-500 hover:text-white" />
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
                 <input
-                    className="input-field pl-10"
+                    className="input-field pl-9 py-2.5 text-sm w-full bg-white border-ink-200 text-ink-700 placeholder-ink-400 focus:border-primary-500 focus:ring-0"
                     placeholder="Buscar usuario..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            <div className="glass-card border border-slate-700 overflow-hidden">
-                <table className="w-full text-left text-sm text-slate-400">
-                    <thead className="bg-slate-900/50 text-slate-200 uppercase font-bold text-xs">
-                        <tr>
-                            <th className="p-4">Usuario</th>
-                            <th className="p-4">Email</th>
-                            <th className="p-4">Rol Actual</th>
-                            <th className="p-4 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {filteredUsers.map(user => (
-                            <tr key={user.uid} className="hover:bg-slate-700/50 transition-colors">
-                                <td className="p-4 font-bold text-slate-200 flex items-center gap-2">
-                                    <div className="p-1 bg-slate-700 rounded-full">
-                                        {user.role === 'staff' ? <Shield size={14} className="text-gold-500" /> : <User size={14} />}
-                                    </div>
-                                    <div>
-                                        <div>{user.displayName}</div>
-                                        {user.phoneNumber && <div className="text-xs text-slate-500">{user.phoneNumber}</div>}
-                                    </div>
-                                </td>
-                                <td className="p-4">{user.email}</td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${user.role === 'staff' ? 'bg-gold-500/20 text-gold-500 border border-gold-500/50' :
-                                        user.role === 'tenantAdmin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50' :
-                                            'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                                        }`}>
-                                        {user.role}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right">
-                                    {user.role === 'client' ? (
-                                        <button
-                                            onClick={() => setClientToDelete(user)}
-                                            className="text-xs text-red-400 hover:text-red-300 font-bold hover:underline bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-md border border-red-500/30 transition-all"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    ) : (
-                                        <span className="text-xs text-slate-600">Editar (Próximamente)</span>
-                                    )}
-                                </td>
+            {/* Users Table */}
+            <Card padding="none" className="overflow-hidden border-ink-200 shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-ink-600 border-collapse">
+                        <thead className="bg-ink-50 text-ink-500 uppercase font-bold text-[11px] tracking-wider border-b border-ink-200">
+                            <tr>
+                                <th className="p-4">Usuario</th>
+                                <th className="p-4">Email</th>
+                                <th className="p-4">Rol Actual</th>
+                                <th className="p-4 text-right">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="divide-y divide-ink-100">
+                            {filteredUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="p-8 text-center text-ink-400 italic">
+                                        No se encontraron usuarios
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredUsers.map(user => (
+                                    <tr key={user.uid} className="hover:bg-ink-50/50 transition-colors">
+                                        <td className="p-4 font-bold text-ink-900 flex items-center gap-2">
+                                            <div className="p-2 bg-ink-50 text-ink-500 rounded-full shrink-0">
+                                                {user.role === 'staff' ? <Shield size={14} className="text-primary-500" /> : <User size={14} />}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-semibold text-ink-850">{user.displayName}</div>
+                                                {user.phoneNumber && <div className="text-xs text-ink-500 font-normal">{user.phoneNumber}</div>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-ink-700">{user.email}</td>
+                                        <td className="p-4">
+                                            <Badge variant={
+                                                user.role === 'staff' ? 'sky' :
+                                                user.role === 'tenantAdmin' ? 'success' :
+                                                'neutral'
+                                            }>
+                                                {user.role}
+                                            </Badge>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            {user.role === 'client' ? (
+                                                <button
+                                                    onClick={() => setClientToDelete(user)}
+                                                    className="text-xs text-danger-600 hover:text-danger-700 font-bold hover:underline bg-danger-50 hover:bg-danger-100 px-2.5 py-1.5 rounded-md border border-danger-200 transition-all"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-ink-400 italic">Editar (Próximamente)</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
 
             {/* CREATE USER MODAL */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="glass-card border border-slate-700 w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in duration-200">
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                            <h3 className="font-bold text-white">Registrar Nuevo Usuario</h3>
-                            <button onClick={() => setShowModal(false)}><X className="text-slate-400 hover:text-white" /></button>
+                <Modal
+                    isOpen={showModal}
+                    onClose={() => setShowModal(false)}
+                    title="Registrar Nuevo Usuario"
+                    size="md"
+                    footer={
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                type="button" 
+                                onClick={() => setShowModal(false)} 
+                                className="flex-1 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit" 
+                                form="create-user-form" 
+                                className="flex-1 btn-primary py-2 text-sm font-medium rounded-lg"
+                            >
+                                Crear Usuario
+                            </button>
                         </div>
-                        <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Nombre Completo</label>
-                                <input
-                                    className="input-field"
-                                    placeholder="Ej: Juan Perez"
-                                    required
-                                    value={newName}
-                                    onChange={e => setNewName(e.target.value)}
-                                    autoFocus
-                                />
+                    }
+                >
+                    <form id="create-user-form" onSubmit={handleCreateUser} className="space-y-4 py-2">
+                        <div>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Nombre Completo</label>
+                            <input
+                                className="input-field bg-white border-ink-200 text-ink-700 placeholder-ink-400 focus:border-primary-500"
+                                placeholder="Ej: Juan Perez"
+                                required
+                                value={newName}
+                                onChange={e => setNewName(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Email (Usuario)</label>
+                            <input
+                                type="email"
+                                className="input-field bg-white border-ink-200 text-ink-700 placeholder-ink-400 focus:border-primary-500"
+                                placeholder="usuario@email.com"
+                                required
+                                value={newEmail}
+                                onChange={e => setNewEmail(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Teléfono</label>
+                            <input
+                                type="tel"
+                                className="input-field bg-white border-ink-200 text-ink-700 placeholder-ink-400 focus:border-primary-500"
+                                placeholder="11 1234 5678"
+                                value={newPhone}
+                                onChange={e => setNewPhone(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Rol</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setShowAltaClienteCaballo(true);
+                                    }}
+                                    className="p-3 rounded-lg border text-sm font-bold transition-all bg-ink-50 border-ink-200 text-ink-700 hover:bg-ink-100 hover:border-ink-300"
+                                >
+                                    Cliente (Dueño)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setNewRole('staff')}
+                                    className={`p-3 rounded-lg border text-sm font-bold transition-all ${newRole === 'staff' ? 'bg-primary-50 border-primary-500 text-primary-700 shadow-sm' : 'bg-ink-50 border-ink-200 text-ink-700 hover:bg-ink-100 hover:border-ink-300'}`}
+                                >
+                                    Staff
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Email (Usuario)</label>
-                                <input
-                                    type="email"
-                                    className="input-field"
-                                    placeholder="usuario@email.com"
-                                    required
-                                    value={newEmail}
-                                    onChange={e => setNewEmail(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Teléfono</label>
-                                <input
-                                    type="tel"
-                                    className="input-field"
-                                    placeholder="11 1234 5678"
-                                    value={newPhone}
-                                    onChange={e => setNewPhone(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Rol</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowModal(false);
-                                            setShowAltaClienteCaballo(true);
-                                        }}
-                                        className={`p-3 rounded-lg border text-sm font-bold transition-all bg-slate-700 border-slate-600 text-slate-400 hover:bg-slate-600`}
-                                    >
-                                        Cliente (Dueño)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewRole('staff')}
-                                        className={`p-3 rounded-lg border text-sm font-bold transition-all ${newRole === 'staff' ? 'bg-gold-500/20 border-gold-500 text-gold-500' : 'bg-slate-700 border-slate-600 text-slate-400 hover:bg-slate-600'}`}
-                                    >
-                                        Staff
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="pt-2 text-xs text-slate-500 text-center">
-                                Contraseña por defecto: <code>1234</code>
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
-                                <button type="submit" className="btn-primary flex-1">Crear Usuario</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                        </div>
+                        <div className="pt-2 text-xs text-ink-500 text-center italic">
+                            Contraseña por defecto: <code className="font-mono bg-ink-100 px-1.5 py-0.5 rounded text-ink-700 font-bold border border-ink-200">1234</code>
+                        </div>
+                    </form>
+                </Modal>
             )}
 
             {/* Nuevo Cliente + Caballos Modal */}
@@ -216,23 +242,23 @@ export default function UserManagement() {
             {/* Modal de confirmación de eliminación en cascada */}
             {clientToDelete && (
                 <Modal
-                    open={!!clientToDelete}
+                    isOpen={!!clientToDelete}
                     onClose={() => setClientToDelete(null)}
                     title={`¿Eliminar a ${clientToDelete.displayName}?`}
                     subtitle="Esta acción es irreversible y realizará un borrado en cascada."
                     size="md"
                     footer={
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 w-full">
                             <button
                                 onClick={() => setClientToDelete(null)}
-                                className="btn-secondary"
+                                className="flex-1 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 transition-colors"
                                 disabled={isDeleting}
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={confirmDeleteClient}
-                                className="btn-danger"
+                                className="flex-1 py-2 text-sm font-medium bg-danger-600 text-white hover:bg-danger-700 rounded-lg disabled:opacity-50 transition-colors"
                                 disabled={isDeleting}
                             >
                                 {isDeleting ? 'Eliminando...' : 'Eliminar definitivamente'}
@@ -240,33 +266,36 @@ export default function UserManagement() {
                         </div>
                     }
                 >
-                    <div className="space-y-4 text-sm text-slate-300">
-                        <p className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs">
-                            ⚠️ Se eliminará la cuenta del cliente y todos los datos asociados listados a continuación. Los boxes que ocupen sus caballos quedarán libres automáticamente.
-                        </p>
+                    <div className="space-y-4 text-sm text-ink-600">
+                        <div className="bg-danger-50 border border-danger-200 text-danger-700 p-3.5 rounded-xl text-xs flex gap-2.5 items-start">
+                            <span className="font-bold flex-shrink-0 text-base leading-none">⚠️</span>
+                            <p className="leading-snug">
+                                Se eliminará la cuenta del cliente y todos los datos asociados listados a continuación. Los boxes que ocupen sus caballos quedarán libres automáticamente.
+                            </p>
+                        </div>
                         
-                        <div className="space-y-2 bg-slate-900/50 p-4 rounded-xl border border-slate-700 font-medium">
-                            <div className="flex justify-between">
+                        <div className="space-y-2 bg-ink-50 p-4 rounded-xl border border-ink-200 font-medium text-ink-700">
+                            <div className="flex justify-between items-center">
                                 <span>Caballos asociados:</span>
-                                <span className="text-white font-bold">
+                                <span className="text-ink-900 font-bold font-mono">
                                     {(horses || []).filter(h => h.ownerId === clientToDelete.uid).length}
                                 </span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span>Equipamiento / Monturas:</span>
-                                <span className="text-white font-bold">
+                                <span className="text-ink-900 font-bold font-mono">
                                     {(equipmentItems || []).filter(eq => eq.ownerId === clientToDelete.uid).length}
                                 </span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span>Movimientos financieros (Cuenta corriente):</span>
-                                <span className="text-white font-bold">
+                                <span className="text-ink-900 font-bold font-mono">
                                     {(finances || []).filter(f => f.clientId === clientToDelete.uid).length}
                                 </span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span>Solicitudes registradas:</span>
-                                <span className="text-white font-bold">
+                                <span className="text-ink-900 font-bold font-mono">
                                     {(requests || []).filter(r => r.clientId === clientToDelete.uid).length}
                                 </span>
                             </div>
