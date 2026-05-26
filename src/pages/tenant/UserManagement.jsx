@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { getCollection } from '../../services/mockFirebase'; // Use dynamic collection
 import { Search, UserCog, User, Shield, Plus, X } from 'lucide-react';
 import AltaClienteCaballoModal from '../../components/users/modals/AltaClienteCaballoModal';
+import Modal from '../../components/ui/Modal';
 
 export default function UserManagement() {
     const { currentUser } = useAuth();
