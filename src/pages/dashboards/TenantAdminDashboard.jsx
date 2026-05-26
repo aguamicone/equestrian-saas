@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
 import {
   Activity, Users, TrendingUp, TrendingDown,
-  Stethoscope, Mail, Package, Sun
+  Stethoscope, Mail, Package, Sun, AlertCircle, DollarSign, Clock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 
 export default function TenantAdminDashboard() {
   const { currentUser, currentTenant } = useAuth();
-  const { horses, spaces, alerts, finances, shifts, tenantUsers } = useData();
+  const { horses, spaces, finances, shifts, tenantUsers, logs } = useData();
 
   // ===== Lógica de negocio conservada del dashboard original =====
   const activeStaffMembers = useMemo(() => {
@@ -44,10 +44,30 @@ export default function TenantAdminDashboard() {
       occupancyPct,
       // TODO: conectar a DataContext cuando 'finances' y 'alerts' 
       //       estén disponibles. Hoy son datos de ejemplo.
-      balance: finances?.balance ?? 1240000,
+      balance: finances?.filter(f => f.type === 'income' && f.status === 'paid').reduce((a, b) => a + Number(b.amount), 0) - finances?.filter(f => f.type === 'expense').reduce((a, b) => a + Number(b.amount), 0),
       monthlyChange: 8.2, // %
     };
   }, [horses, spaces, finances, activeStaffMembers.length]);
+
+  const debtorsStats = useMemo(() => {
+    if (!finances) return { count: 0, total: 0 };
+    const pending = finances.filter(f => (f.status === 'pending' || f.status === 'overdue') && f.type === 'income');
+    const total = pending.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const uniqueIds = new Set(pending.map(f => f.clientId || f.horseId).filter(Boolean));
+    return {
+        count: uniqueIds.size,
+        total
+    };
+  }, [finances]);
+
+  const recentLogs = useMemo(() => {
+    if (!logs) return [];
+    return [...logs].sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+    }).slice(0, 4);
+  }, [logs]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buen día' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
@@ -142,96 +162,82 @@ export default function TenantAdminDashboard() {
       {/* ===== Ocupación + Alertas ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
-        {/* Ocupación de boxes */}
+        {/* Cuadrante de Deudores */}
         <div className="card p-5 animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-display text-base font-medium text-ink-800">
-                Ocupación de boxes
-              </h3>
-              <p className="text-xs text-ink-500 mt-0.5">
-                {currentTenant?.name} · {stats.totalSpaces} espacios
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="font-display text-2xl font-medium text-primary-600 leading-none">
-                {stats.occupancyPct}<span className="text-base text-ink-400">%</span>
-              </div>
-              <div className="text-[10px] text-ink-500 tracking-wider uppercase mt-1">
-                {stats.occupied}/{stats.totalSpaces} ocupados
-              </div>
-            </div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-display text-base font-medium text-ink-800">
+              Estado de Cobranzas
+            </h3>
+            {debtorsStats.count > 0 ? (
+                <span className="badge-danger">Atención</span>
+            ) : (
+                <span className="badge-success">Al día</span>
+            )}
           </div>
 
-          {/* Grid de boxes */}
-          <div className="grid grid-cols-5 gap-2">
-            {Array.from({ length: stats.totalSpaces }).map((_, i) => {
-              const num = i + 1;
-              const space = spaces?.[i];
-              const empty = space ? space.status !== 'occupied' : true;
-              const warning = num === 7;
-              const cls = empty
-                ? 'box-cell-empty'
-                : warning
-                  ? 'box-cell-warning animate-pulse-soft'
-                  : 'box-cell-occupied';
-              return (
-                <div key={num} className={cls} title={`Box ${String(num).padStart(2, '0')}`}>
-                  {String(num).padStart(2, '0')}
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            {debtorsStats.count > 0 ? (
+              <>
+                <AlertCircle size={48} strokeWidth={1.5} className="text-danger-400 mb-4" />
+                <div className="text-3xl font-display font-medium text-ink-900 mb-1">
+                  ${debtorsStats.total.toLocaleString()}
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Leyenda */}
-          <div className="flex flex-wrap gap-3 mt-4 text-[11px] text-ink-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 bg-primary-400 rounded" />
-              Ocupado
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 bg-gold-400 rounded" />
-              Atención
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 border-2 border-dashed border-ink-300 rounded" />
-              Libre
-            </span>
+                <div className="text-sm text-ink-500">
+                  Pendiente de cobro de {debtorsStats.count} cliente(s) / caballo(s)
+                </div>
+              </>
+            ) : (
+              <>
+                <TrendingUp size={48} strokeWidth={1.5} className="text-success-400 mb-4" />
+                <div className="text-xl font-medium text-ink-900 mb-1">
+                  ¡Todo al día!
+                </div>
+                <div className="text-sm text-ink-500">
+                  No hay pagos atrasados ni pendientes.
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Alertas recientes */}
-        {/* TODO: conectar a DataContext cuando 'finances' y 'alerts' estén disponibles. Hoy son datos de ejemplo. */}
+        {/* Últimas actividades */}
         <div className="card p-5 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-display text-base font-medium text-ink-800">
-              Alertas recientes
+              Últimas Actividades
             </h3>
-            <span className="badge-danger animate-pulse-soft">3 nuevas</span>
           </div>
 
           <div className="space-y-2">
-            <AlertRow
-              icon={Stethoscope}
-              tone="gold"
-              title='Visita veterinaria — Thunder'
-              subtitle="Box 07 · vence en 2 días"
-              tag="Urgente"
-            />
-            <AlertRow
-              icon={Mail}
-              tone="primary"
-              title="Nueva solicitud de pensión"
-              subtitle="Jacquelline · hace 2h"
-              tag="Nuevo"
-            />
-            <AlertRow
-              icon={Package}
-              tone="neutral"
-              title="Stock bajo — Ivermectina"
-              subtitle="15 dosis · mínimo 5"
-              tag="Aviso"
-            />
+            {recentLogs.length > 0 ? (
+              recentLogs.map(log => {
+                 let tone = 'neutral';
+                 let icon = Activity;
+                 if (log.type.includes('charge') || log.type.includes('payment') || log.type.includes('plan')) {
+                     tone = 'gold';
+                     icon = DollarSign;
+                 } else if (log.type.includes('horse') || log.type.includes('health')) {
+                     tone = 'primary';
+                     icon = Stethoscope;
+                 } else if (log.type.includes('user') || log.type.includes('staff')) {
+                     tone = 'success';
+                     icon = Users;
+                 }
+
+                 const date = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Reciente';
+                 return (
+                     <AlertRow
+                        key={log.id}
+                        icon={icon}
+                        tone={tone}
+                        title={log.details || log.type}
+                        subtitle={`${log.staffName || 'Sistema'} · ${date}`}
+                     />
+                 );
+              })
+            ) : (
+              <div className="text-sm text-ink-500 text-center py-4">No hay actividades recientes hoy.</div>
+            )}
           </div>
         </div>
       </div>
@@ -284,7 +290,7 @@ function AlertRow({ icon: Icon, tone, title, subtitle, tag }) {
         <div className="text-sm font-medium text-ink-800 truncate">{title}</div>
         <div className="text-[11px] text-ink-500 mt-0.5">{subtitle}</div>
       </div>
-      <span className={`${t.badge} bg-white/80`}>{tag}</span>
+      {tag && <span className={`${t.badge} bg-white/80`}>{tag}</span>}
     </div>
   );
 }
