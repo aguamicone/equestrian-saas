@@ -50,21 +50,26 @@ export default function BulkHealthRecordModal({ horses, onClose }) {
 
     setIsSubmitting(true);
     
-    // Execute all creations in parallel
-    await Promise.all(selectedHorseIds.map(horseId => 
-        createHealthRecord({
-            horseId: horseId,
-            type: formData.type,
-            subtype: formData.subtype,
-            date: formData.date,
-            nextDueDate: formData.hasDueDate ? formData.nextDueDate : null,
-            veterinarianName: formData.veterinarianName,
-            notes: formData.notes
-        })
-    ));
-
-    setIsSubmitting(false);
-    onClose();
+    try {
+        // Execute all creations in parallel
+        await Promise.all(selectedHorseIds.map(horseId => 
+            createHealthRecord({
+                horseId: horseId,
+                type: formData.type,
+                subtype: formData.subtype,
+                date: formData.date,
+                nextDueDate: formData.hasDueDate ? formData.nextDueDate : null,
+                veterinarianName: formData.veterinarianName,
+                notes: formData.notes
+            })
+        ));
+    } catch (error) {
+        console.error("Error en registro masivo:", error);
+        alert("Ocurrió un error al guardar algunos registros.");
+    } finally {
+        setIsSubmitting(false);
+        onClose();
+    }
   };
 
   const getSuggestions = () => {

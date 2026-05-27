@@ -339,7 +339,9 @@ export function DataProvider({ children }) {
                     const horse = horses.find(h => h.id === record.horseId);
                     if (horse && !horse.archived) {
                         const typeName = record.type ? record.type.replace('_', ' ') : 'evento';
-                        const message = `Alerta Sanitaria: ${typeName} de ${horse.name} vence en ${diffDays === 0 ? 'hoy' : `${diffDays} días`} (${new Date(record.nextDueDate).toLocaleDateString()})`;
+                        // Fix JS Date Timezone bug by parsing string directly YYYY-MM-DD -> DD/MM/YYYY
+                        const formattedDate = record.nextDueDate.split('-').reverse().join('/');
+                        const message = `Alerta Sanitaria: ${typeName} de ${horse.name} vence en ${diffDays === 0 ? 'hoy' : `${diffDays} días`} (${formattedDate})`;
                         
                         // Check if notification already exists
                         const alreadySentAdmin = notifications.some(n => n.message === message && n.recipientId === 'ALL_ADMINS');
