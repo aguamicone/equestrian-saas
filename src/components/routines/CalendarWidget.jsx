@@ -130,7 +130,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
             if (isSameMonth(start, end)) return `${format(start, 'd')} al ${format(end, 'd')} de ${format(start, 'MMMM yyyy', { locale: es })}`;
             return `${format(start, 'd MMM', { locale: es })} - ${format(end, 'd MMM yyyy', { locale: es })}`;
         }
-        return format(currentDate, 'EEEE d de MMMM', { locale: es });
+        return format(currentDate, "EEEE d 'de' MMMM", { locale: es });
     };
 
     return (
