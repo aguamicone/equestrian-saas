@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
     format, 
     startOfMonth, 
@@ -9,22 +9,59 @@ import {
     isSameMonth, 
     isSameDay, 
     addMonths, 
-    subMonths
+    subMonths,
+    addWeeks,
+    subWeeks,
+    addDays,
+    subDays
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, LayoutGrid } from 'lucide-react';
 
 export default function CalendarWidget({ currentDate, setCurrentDate, events, onEventClick, onDayClick, isClient = false }) {
+    const [viewMode, setViewMode] = useState('month');
+
+    // Auto-detect mobile to default to day view
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setViewMode('day');
+            } else {
+                setViewMode('month');
+            }
+        };
+        handleResize(); // Initial check
+        // We don't attach resize listener to avoid jumping modes while using the app,
+        // just set it on mount based on initial screen size.
+    }, []);
     
-    const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-    const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+    const nextTime = () => {
+        if (viewMode === 'month') setCurrentDate(addMonths(currentDate, 1));
+        else if (viewMode === 'week') setCurrentDate(addWeeks(currentDate, 1));
+        else setCurrentDate(addDays(currentDate, 1));
+    };
+
+    const prevTime = () => {
+        if (viewMode === 'month') setCurrentDate(subMonths(currentDate, 1));
+        else if (viewMode === 'week') setCurrentDate(subWeeks(currentDate, 1));
+        else setCurrentDate(subDays(currentDate, 1));
+    };
+
     const goToToday = () => setCurrentDate(new Date());
 
     const days = useMemo(() => {
-        const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
-        const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
-        return eachDayOfInterval({ start, end });
-    }, [currentDate]);
+        if (viewMode === 'month') {
+            const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
+            const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
+            return eachDayOfInterval({ start, end });
+        } else if (viewMode === 'week') {
+            const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+            return eachDayOfInterval({ start, end });
+        } else {
+            return [currentDate];
+        }
+    }, [currentDate, viewMode]);
 
     // Group events by YYYY-MM-DD including recurring events
     const eventsByDate = useMemo(() => {
@@ -32,7 +69,6 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
         
         const pushEvent = (dateStr, event) => {
             if (!grouped[dateStr]) grouped[dateStr] = [];
-            // Prevent duplicates (though shouldn't happen with this logic)
             if (!grouped[dateStr].find(e => e.id === event.id)) {
                 grouped[dateStr].push({ ...event, virtualDate: dateStr });
             }
@@ -42,8 +78,6 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
 
         days.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
-            // getDay(): 0 = Sun, 1 = Mon ... 6 = Sat
-            // Map to 1 = Mon ... 7 = Sun for easier logic
             let dayOfWeek = day.getDay();
             if (dayOfWeek === 0) dayOfWeek = 7; 
             
@@ -58,10 +92,9 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                 } else if (isRecurringGeneral) {
                     const dayKey = DAY_KEYS[dayOfWeek];
                     if (event.frequencyDays && event.frequencyDays.includes(dayKey)) {
-                        pushEvent(dateStr, { ...event, activityType: event.name }); // Map name to activityType for rendering
+                        pushEvent(dateStr, { ...event, activityType: event.name }); 
                     }
                 } else {
-                    // Single horse routine
                     if (event.date === dateStr && event.horseId) {
                         pushEvent(dateStr, event);
                     }
@@ -69,7 +102,6 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
             });
         });
         
-        // Sort events inside each day by time
         Object.keys(grouped).forEach(date => {
             grouped[date].sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
         });
@@ -77,7 +109,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
     }, [events, days]);
 
     const getActivityColor = (activityType, isGeneral) => {
-        if (isGeneral) return 'bg-ink-100 text-ink-800 border-ink-200'; // Neutral for general tasks
+        if (isGeneral) return 'bg-ink-100 text-ink-800 border-ink-200'; 
 
         switch (activityType?.toLowerCase()) {
             case 'noria': return 'bg-sky-100 text-sky-800 border-sky-200';
@@ -90,96 +122,191 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
         }
     };
 
+    const displayTitle = () => {
+        if (viewMode === 'month') return format(currentDate, 'MMMM yyyy', { locale: es });
+        if (viewMode === 'week') {
+            const start = days[0];
+            const end = days[days.length - 1];
+            if (isSameMonth(start, end)) return `${format(start, 'd')} al ${format(end, 'd')} de ${format(start, 'MMMM yyyy', { locale: es })}`;
+            return `${format(start, 'd MMM', { locale: es })} - ${format(end, 'd MMM yyyy', { locale: es })}`;
+        }
+        return format(currentDate, 'EEEE d de MMMM', { locale: es });
+    };
+
     return (
         <div className="bg-white rounded-2xl shadow-card border border-ink-200 overflow-hidden flex flex-col h-full">
             {/* Header */}
-            <div className="p-4 border-b border-ink-200 flex items-center justify-between bg-ink-50/50">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-ink-900 capitalize">
-                        {format(currentDate, 'MMMM yyyy', { locale: es })}
-                    </h2>
-                    <button 
-                        onClick={goToToday}
-                        className="px-3 py-1.5 text-xs font-bold bg-white border border-ink-200 rounded-lg text-ink-600 hover:bg-ink-50 transition-colors shadow-sm"
-                    >
-                        Hoy
-                    </button>
-                </div>
-                <div className="flex items-center gap-1 bg-white border border-ink-200 rounded-xl p-1 shadow-sm">
-                    <button onClick={prevMonth} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
-                        <ChevronLeft size={20} />
-                    </button>
-                    <button onClick={nextMonth} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
-                        <ChevronRight size={20} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Days of week header */}
-            <div className="grid grid-cols-7 border-b border-ink-200 bg-white">
-                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                    <div key={day} className="py-3 text-center text-xs font-bold text-ink-500 uppercase tracking-wider">
-                        {day}
-                    </div>
-                ))}
-            </div>
-
-            {/* Grid */}
-            <div className="flex-1 grid grid-cols-7 auto-rows-fr bg-ink-100 gap-[1px]">
-                {days.map((day, idx) => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const dayEvents = eventsByDate[dateStr] || [];
-                    const isCurrentMonth = isSameMonth(day, currentDate);
-                    const isToday = isSameDay(day, new Date());
-
-                    return (
-                        <div 
-                            key={day.toString()} 
-                            onClick={() => !isClient && onDayClick && onDayClick(dateStr)}
-                            className={`min-h-[120px] bg-white p-2 transition-colors relative group
-                                ${isCurrentMonth ? '' : 'bg-ink-50/30'}
-                                ${!isClient && 'cursor-pointer hover:bg-primary-50/30'}
-                            `}
+            <div className="p-4 border-b border-ink-200 bg-ink-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-bold text-ink-900 capitalize">
+                            {displayTitle()}
+                        </h2>
+                        <button 
+                            onClick={goToToday}
+                            className="px-3 py-1.5 text-xs font-bold bg-white border border-ink-200 rounded-lg text-ink-600 hover:bg-ink-50 transition-colors shadow-sm shrink-0"
                         >
-                            <div className="flex justify-between items-start mb-2">
-                                <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
-                                    ${isToday ? 'bg-primary-600 text-white shadow-sm' : 
-                                      isCurrentMonth ? 'text-ink-900' : 'text-ink-400'}`}
-                                >
-                                    {format(day, 'd')}
-                                </span>
-                            </div>
+                            Hoy
+                        </button>
+                    </div>
 
-                            <div className="space-y-1.5 max-h-[100px] overflow-y-auto custom-scrollbar pr-1">
+                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                        {/* View Toggles */}
+                        <div className="flex bg-ink-100 p-1 rounded-xl">
+                            <button 
+                                onClick={() => setViewMode('day')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'day' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
+                            >
+                                <ListIcon size={14}/> Día
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('week')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'week' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
+                            >
+                                <LayoutGrid size={14}/> Sem
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('month')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'month' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
+                            >
+                                <CalendarIcon size={14}/> Mes
+                            </button>
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="flex items-center gap-1 bg-white border border-ink-200 rounded-xl p-1 shadow-sm">
+                            <button onClick={prevTime} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
+                                <ChevronLeft size={20} />
+                            </button>
+                            <button onClick={nextTime} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Content Area */}
+            {viewMode === 'day' ? (
+                // --- DAY VIEW (List Style) ---
+                <div className="flex-1 overflow-y-auto bg-ink-50 p-4">
+                    {(() => {
+                        const dateStr = format(currentDate, 'yyyy-MM-dd');
+                        const dayEvents = eventsByDate[dateStr] || [];
+                        
+                        if (dayEvents.length === 0) {
+                            return (
+                                <div className="h-full flex flex-col items-center justify-center text-ink-400 p-8 text-center bg-white rounded-2xl border border-dashed border-ink-200">
+                                    <CalendarIcon size={32} className="mb-2 opacity-50"/>
+                                    <p className="font-medium">No hay actividades programadas para este día.</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="space-y-3">
                                 {dayEvents.map(event => (
                                     <div 
                                         key={event.id}
                                         onClick={(e) => {
-                                            e.stopPropagation();
-                                            // Sólo las rutinas de caballos abren el modal (tienen horseId)
-                                            if (event.horseId) {
+                                            if (event.horseId && !isClient) {
                                                 onEventClick && onEventClick(event);
                                             }
                                         }}
-                                        className={`px-2 py-1.5 text-xs rounded-lg border flex flex-col gap-1 transition-transform shadow-sm ${!isClient && event.horseId ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'} ${getActivityColor(event.activityType, !event.horseId)}`}
+                                        className={`bg-white p-4 rounded-xl shadow-sm border border-ink-100 flex items-start gap-4 transition-all ${!isClient && event.horseId ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200' : 'cursor-default'}`}
                                     >
-                                        <div className="flex items-center justify-between gap-1">
-                                            <span className="font-bold truncate" title={event.horseName || 'Tarea General'}>
-                                                {event.horseName || '⚙️ Tarea General'}
-                                            </span>
-                                            {event.time && <span className="text-[10px] font-mono opacity-80 shrink-0">{event.time}</span>}
+                                        <div className="shrink-0 w-16 text-center">
+                                            <span className="block text-sm font-black text-ink-900">{event.time || 'N/A'}</span>
                                         </div>
-                                        <div className="truncate opacity-90 capitalize font-medium">
-                                            {event.activityType}
-                                            {event.routineType?.includes('recurring') && ' 🔁'}
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="font-bold text-ink-800 text-base leading-tight">
+                                                    {event.horseName || '⚙️ Tarea General'}
+                                                </h4>
+                                                <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg border ${getActivityColor(event.activityType, !event.horseId)}`}>
+                                                    {event.activityType}
+                                                </span>
+                                            </div>
+                                            {(event.notes || event.routineType?.includes('recurring')) && (
+                                                <div className="mt-2 text-sm text-ink-500 flex items-center gap-2">
+                                                    {event.routineType?.includes('recurring') && <span title="Recurrente">🔁</span>}
+                                                    <span>{event.notes || 'Sin detalles extra'}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })()}
+                </div>
+            ) : (
+                // --- MONTH & WEEK VIEW (Grid Style) ---
+                <div className="flex-1 flex flex-col min-h-0">
+                    <div className="grid grid-cols-7 border-b border-ink-200 bg-white shrink-0">
+                        {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+                            <div key={day} className="py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-ink-500 uppercase tracking-wider">
+                                {day}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className={`flex-1 grid grid-cols-7 bg-ink-100 gap-[1px] ${viewMode === 'month' ? 'auto-rows-[minmax(80px,1fr)]' : 'auto-rows-[minmax(200px,1fr)]'}`}>
+                        {days.map((day) => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            const dayEvents = eventsByDate[dateStr] || [];
+                            const isCurrentMonth = isSameMonth(day, currentDate);
+                            const isToday = isSameDay(day, new Date());
+
+                            return (
+                                <div 
+                                    key={day.toString()} 
+                                    onClick={() => !isClient && onDayClick && onDayClick(dateStr)}
+                                    className={`bg-white p-1 sm:p-2 transition-colors relative group overflow-hidden
+                                        ${isCurrentMonth || viewMode === 'week' ? '' : 'bg-ink-50/30'}
+                                        ${!isClient && 'cursor-pointer hover:bg-primary-50/30'}
+                                    `}
+                                >
+                                    <div className="flex justify-between items-start mb-1 sm:mb-2">
+                                        <span className={`text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full
+                                            ${isToday ? 'bg-primary-600 text-white shadow-sm' : 
+                                              (isCurrentMonth || viewMode === 'week') ? 'text-ink-900' : 'text-ink-400'}`}
+                                        >
+                                            {format(day, 'd')}
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-1 overflow-y-auto custom-scrollbar pr-0.5 h-[calc(100%-30px)]">
+                                        {dayEvents.map(event => (
+                                            <div 
+                                                key={event.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (event.horseId && !isClient) {
+                                                        onEventClick && onEventClick(event);
+                                                    }
+                                                }}
+                                                className={`p-1 sm:px-2 sm:py-1.5 text-[9px] sm:text-xs rounded border flex flex-col transition-transform shadow-sm ${!isClient && event.horseId ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'} ${getActivityColor(event.activityType, !event.horseId)}`}
+                                            >
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span className="font-bold truncate" title={event.horseName || 'Tarea General'}>
+                                                        {event.horseName || '⚙'}
+                                                    </span>
+                                                    {event.time && <span className="hidden sm:inline text-[9px] font-mono opacity-80 shrink-0">{event.time}</span>}
+                                                </div>
+                                                <div className="truncate opacity-90 capitalize font-medium hidden sm:block">
+                                                    {event.activityType}
+                                                    {event.routineType?.includes('recurring') && ' 🔁'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
