@@ -1,24 +1,28 @@
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { CreditCard, DollarSign, Calendar, CheckCircle } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, isValid } from 'date-fns';
 import { Card, EmptyState, PageHeader } from '../../components/ui';
 
 export default function ClientFinance() {
     const { currentUser } = useAuth();
     const { getPendingChargesForUser, getPaidChargesForUser, horses, pricingPlans } = useData();
 
-    const pendingCharges = getPendingChargesForUser(currentUser.uid);
-    const paidCharges = getPaidChargesForUser(currentUser.uid);
-    const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
+    // Default arrays to prevent any undefined crashes
+    const pendingCharges = (getPendingChargesForUser && currentUser ? getPendingChargesForUser(currentUser.uid) : []) || [];
+    const paidCharges = (getPaidChargesForUser && currentUser ? getPaidChargesForUser(currentUser.uid) : []) || [];
+    const safeHorses = horses || [];
+    const safePricingPlans = pricingPlans || [];
+
+    const myHorses = safeHorses.filter(h => h.ownerId === currentUser?.uid);
 
     // Suma real de deuda pendiente
-    const amountDue = pendingCharges.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+    const amountDue = pendingCharges.reduce((acc, c) => acc + Number(c?.amount || 0), 0);
 
     // Resumen de servicios contratados
     const monthlyFee = myHorses.reduce((acc, horse) => {
-        const activePlans = pricingPlans.filter(p => horse.assignedPlanIds?.includes(p.id));
-        const horseCost = activePlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
+        const activePlans = safePricingPlans.filter(p => horse?.assignedPlanIds?.includes(p.id));
+        const horseCost = activePlans.reduce((sum, p) => sum + Number(p?.price || 0), 0);
         return acc + horseCost;
     }, 0);
 
@@ -69,9 +73,9 @@ export default function ClientFinance() {
 
                     <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                         {myHorses.map(horse => {
-                            const activePlans = pricingPlans.filter(p => horse.assignedPlanIds?.includes(p.id));
+                            const activePlans = safePricingPlans.filter(p => horse?.assignedPlanIds?.includes(p.id));
                             if (activePlans.length === 0) return null;
-                            const horseTotal = activePlans.reduce((sum, p) => sum + Number(p.price || 0), 0);
+                            const horseTotal = activePlans.reduce((sum, p) => sum + Number(p?.price || 0), 0);
 
                             return (
                                 <div key={horse.id} className="flex justify-between items-center text-sm border-b border-ink-100 pb-2">
@@ -108,20 +112,23 @@ export default function ClientFinance() {
                             let dueDateColor = 'text-ink-500';
                             
                             if (charge.dueDate) {
-                                const daysUntilDue = differenceInDays(parseISO(charge.dueDate), new Date());
-                                if (daysUntilDue < 0) {
-                                    const absDays = Math.abs(daysUntilDue);
-                                    dueDateLabel = `Vencido hace ${absDays} día${absDays === 1 ? '' : 's'}`;
-                                    dueDateColor = 'text-danger-600 font-medium';
-                                } else if (daysUntilDue === 0) {
-                                    dueDateLabel = 'Vence hoy';
-                                    dueDateColor = 'text-amber-600 font-medium';
-                                } else if (daysUntilDue <= 3) {
-                                    dueDateLabel = `Vence en ${daysUntilDue} día${daysUntilDue === 1 ? '' : 's'}`;
-                                    dueDateColor = 'text-amber-600 font-medium';
-                                } else {
-                                    dueDateLabel = `Vence en ${daysUntilDue} días`;
-                                    dueDateColor = 'text-ink-500';
+                                const parsedDate = parseISO(charge.dueDate);
+                                if (isValid(parsedDate)) {
+                                    const daysUntilDue = differenceInDays(parsedDate, new Date());
+                                    if (daysUntilDue < 0) {
+                                        const absDays = Math.abs(daysUntilDue);
+                                        dueDateLabel = `Vencido hace ${absDays} día${absDays === 1 ? '' : 's'}`;
+                                        dueDateColor = 'text-danger-600 font-medium';
+                                    } else if (daysUntilDue === 0) {
+                                        dueDateLabel = 'Vence hoy';
+                                        dueDateColor = 'text-amber-600 font-medium';
+                                    } else if (daysUntilDue <= 3) {
+                                        dueDateLabel = `Vence en ${daysUntilDue} día${daysUntilDue === 1 ? '' : 's'}`;
+                                        dueDateColor = 'text-amber-600 font-medium';
+                                    } else {
+                                        dueDateLabel = `Vence en ${daysUntilDue} días`;
+                                        dueDateColor = 'text-ink-500';
+                                    }
                                 }
                             }
                             
@@ -139,7 +146,7 @@ export default function ClientFinance() {
                                         </div>
                                     </div>
                                     <div className="font-bold text-ink-900 font-mono text-lg">
-                                        ${Number(charge.amount).toLocaleString()}
+                                        ${Number(charge.amount || 0).toLocaleString()}
                                     </div>
                                 </div>
                             );
@@ -154,24 +161,28 @@ export default function ClientFinance() {
                 
                 {paidCharges.length > 0 ? (
                     <div className="divide-y divide-ink-100">
-                        {paidCharges.map(t => (
-                            <div key={t.id} className="p-4 flex items-center justify-between hover:bg-ink-50/50 transition-colors">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-success-50 text-success-600 border border-success-100 rounded-full">
-                                        <DollarSign size={20} />
-                                    </div>
-                                    <div>
-                                        <div className="font-medium text-ink-900">{t.description}</div>
-                                        <div className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
-                                            <Calendar size={12} /> {new Date(t.date).toLocaleDateString()}
+                        {paidCharges.map(t => {
+                            const dateObj = new Date(t.date);
+                            const safeDateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString() : 'Fecha inválida';
+                            return (
+                                <div key={t.id} className="p-4 flex items-center justify-between hover:bg-ink-50/50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-2 bg-success-50 text-success-600 border border-success-100 rounded-full">
+                                            <DollarSign size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="font-medium text-ink-900">{t.description}</div>
+                                            <div className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
+                                                <Calendar size={12} /> {safeDateStr}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="font-bold text-ink-900 font-mono text-lg">
+                                        ${Number(t.amount || 0).toLocaleString()}
+                                    </div>
                                 </div>
-                                <div className="font-bold text-ink-900 font-mono text-lg">
-                                    ${Number(t.amount).toLocaleString()}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="p-8">
