@@ -36,12 +36,15 @@ export default function AdminDirectoryView() {
                 title="Directorio de Contactos"
                 subtitle="Gestioná la agenda de profesionales y clínicas del haras"
                 icon={BookOpen}
-                color="indigo"
-                action={{
-                    label: 'Nuevo Contacto',
-                    icon: UserPlus,
-                    onClick: () => setModalConfig({ isOpen: true, contact: null })
-                }}
+                actions={
+                    <button 
+                        onClick={() => setModalConfig({ isOpen: true, contact: null })}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <UserPlus size={18} />
+                        <span>Nuevo Contacto</span>
+                    </button>
+                }
             />
 
             <div className="bg-white rounded-xl shadow-sm border border-ink-200 overflow-hidden">
