@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Badge, EmptyState, PageHeader } from '../../components/ui';
 
 export default function MyHorses() {
-    const { horses, addHorse, pricingPlans } = useData();
+    const { horses, addHorse, pricingPlans, loading } = useData();
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [showModal, setShowModal] = useState(false);
@@ -45,7 +45,13 @@ export default function MyHorses() {
                 }}
             />
 
-            {myHorses.length === 0 ? (
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-pulse">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="bg-white rounded-2xl h-24 border border-ink-200"></div>
+                    ))}
+                </div>
+            ) : myHorses.length === 0 ? (
                 <EmptyState
                     icon={Activity}
                     message="No tenés caballos asignados"
@@ -65,19 +71,6 @@ export default function MyHorses() {
                                 padding="none"
                                 className="flex relative group active:scale-95 transition-transform duration-200 cursor-pointer overflow-hidden"
                             >
-                                {/* Membership Badge */}
-                                <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
-                                    {activePlans.map(plan => (
-                                        <Badge 
-                                            key={plan.id} 
-                                            variant={plan.type === 'membership' ? 'gold' : 'primary'} 
-                                            size="sm"
-                                        >
-                                            {plan.name}
-                                        </Badge>
-                                    ))}
-                                </div>
-
                                 <div className="w-24 h-24 bg-ink-100 flex-shrink-0 border-r border-ink-100">
                                     {horse.photo ? (
                                         <img src={horse.photo} className="w-full h-full object-cover" />
@@ -89,6 +82,21 @@ export default function MyHorses() {
                                     <div className="min-w-0 pr-2">
                                         <h3 className="font-bold text-ink-800 text-lg truncate">{horse.name}</h3>
                                         <p className="text-sm text-ink-500 truncate">{horse.breed} • {horse.age} años</p>
+                                        
+                                        {activePlans.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                {activePlans.map(plan => (
+                                                    <Badge 
+                                                        key={plan.id} 
+                                                        variant={plan.type === 'membership' ? 'gold' : 'primary'} 
+                                                        size="sm"
+                                                    >
+                                                        {plan.name}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <p className={`text-xs mt-1.5 font-medium flex items-center gap-1 ${(!horse.location || horse.location === 'box') ? 'text-ink-400' : horse.location === 'piquete' ? 'text-success-600' : 'text-gold-600'}`}>
                                             <MapPin size={12}/> {(!horse.location || horse.location === 'box') ? 'En Box' : horse.location === 'piquete' ? 'En Piquete' : 'En Circular'}
                                         </p>

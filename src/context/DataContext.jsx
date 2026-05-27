@@ -62,28 +62,44 @@ export function DataProvider({ children }) {
 
         if (!currentUser) {
             setSpaces([]); setHorses([]); setFinances([]); setLogs([]); setRequests([]);
-            setRoutines([]); setPricingPlans([]); setShifts([]); setTenantUsers([]);
-            setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
-            setEvents([]); setHealthRecords([]); setHealthBooklets([]); setDirectoryContacts([]);
-            setEquipmentItems([]);
-            setTenantRoles([]);
-            setNotifications([]);
+            setLoading(false);
+            return;
+        }
+
+        if (!db || !currentUser) {
+            setLoading(false);
             return;
         }
 
         setTenantSettings(currentTenant);
+        setLoading(true);
 
+        let isMounted = true;
         const unsubs = [];
 
-        const subscribe = (collName, setFn, extraConstraints = []) => {
+        let hLoaded = false;
+        let sLoaded = false;
+        const checkLoad = () => {
+            if (hLoaded && sLoaded && isMounted) setLoading(false);
+        };
+
+        const subscribe = (collName, setFn, extraConstraints = [], onFirstLoad = null) => {
             const q = query(collection(db, collName), where("tenantId", "==", currentTenant.id), ...extraConstraints);
             return onSnapshot(q, snap => {
                 setFn(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+                if (onFirstLoad) {
+                    onFirstLoad();
+                    onFirstLoad = null;
+                }
+            }, (error) => {
+                console.error(`Error subscribing to ${collName}:`, error);
+                if (onFirstLoad) { onFirstLoad(); onFirstLoad = null; }
             });
         };
 
-        unsubs.push(subscribe('SPACES', setSpaces));
-        unsubs.push(subscribe('HORSES', setHorses));
+        unsubs.push(subscribe('SPACES', setSpaces, [], () => { sLoaded = true; checkLoad(); }));
+        unsubs.push(subscribe('HORSES', setHorses, [], () => { hLoaded = true; checkLoad(); }));
+        
         if (currentUser?.role === 'client') {
             unsubs.push(subscribe('FINANCES', setFinances, [where('clientId', '==', currentUser.uid)]));
         } else {
@@ -105,10 +121,8 @@ export function DataProvider({ children }) {
         if (currentUser.role === 'staff') {
             unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances, [where("staffId", "==", currentUser.uid)]));
         } else if (currentUser.role !== 'client') {
-            // tenantAdmin, superAdmin u otros: lee todo
             unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances));
         }
-        // Si role === 'client': NO suscribir (skip)
 
         unsubs.push(subscribe('EVENTS', setEvents));
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
@@ -121,7 +135,6 @@ export function DataProvider({ children }) {
         }
 
         if (currentUser) {
-            // Notificaciones filtradas server-side para respetar Firestore rules
             const validRecipients = [currentUser.uid];
             if (['tenantAdmin', 'superAdmin'].includes(currentUser.role)) {
                 validRecipients.push('ALL_ADMINS');
@@ -136,7 +149,10 @@ export function DataProvider({ children }) {
             }));
         }
 
-        return () => unsubs.forEach(unsub => unsub());
+        return () => {
+            isMounted = false;
+            unsubs.forEach(unsub => unsub());
+        };
     }, [currentTenant?.id, currentUser?.uid, currentUser?.role]);
 
     // Suscripción específica de EQUIPMENT_ITEMS para clientes
@@ -144,7 +160,6 @@ export function DataProvider({ children }) {
         if (!currentTenant?.id || !currentUser?.uid || currentUser.role !== 'client') return;
         
         const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid);
-        // Firebase 'in' limita a 10 valores máximo
         const allowedUids = [currentUser.uid, ...adminUids].slice(0, 10);
         
         const q = query(
@@ -206,7 +221,6 @@ export function DataProvider({ children }) {
         try {
             const status = autoApprove ? 'pending_staff' : 'pending_admin';
             
-            // Crear doc en REQUESTS
             const requestRef = await addDoc(collection(db, 'REQUESTS'), {
                 tenantId: currentTenant.id,
                 clientId,
@@ -224,7 +238,6 @@ export function DataProvider({ children }) {
                 date: new Date().toISOString()
             });
             
-            // Notificar a TODOS los caballerizos del tenant
             const staffList = tenantUsers.filter(u => u.role === 'staff');
             const horse = horses.find(h => h.id === horseId);
             const horseName = horse?.name || 'tu caballo';
@@ -263,12 +276,10 @@ export function DataProvider({ children }) {
             
             const data = reqSnap.data();
             
-            // Solo cancelar si está pendiente
             if (data.status !== 'pending_staff' && data.status !== 'pending_admin') {
                 return { success: false, error: 'No se puede cancelar una solicitud ya en progreso.' };
             }
             
-            // Ownership
             if (data.clientId !== currentUser.uid) {
                 return { success: false, error: 'No autorizado.' };
             }
@@ -292,7 +303,6 @@ export function DataProvider({ children }) {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
         
         try {
-            // Crear doc en REQUESTS preservando comportamiento original
             await addDoc(collection(db, 'REQUESTS'), {
                 tenantId: currentTenant.id,
                 date: new Date().toISOString(),
@@ -300,7 +310,6 @@ export function DataProvider({ children }) {
                 ...requestData
             });
             
-            // Notificar a todos los administradores del tenant en lugar del literal roto 'ALL_ADMINS'
             const adminList = tenantUsers.filter(u => u.role === 'tenantAdmin');
             const notifPromises = adminList.map(admin =>
                 sendNotification(
@@ -320,8 +329,6 @@ export function DataProvider({ children }) {
         }
     };
 
-    // --- Check Health Alerts ---
-    // Se ejecuta una vez por sesión para generar notificaciones proactivas de salud
     const [healthAlertsChecked, setHealthAlertsChecked] = useState(false);
 
     useEffect(() => {
@@ -336,16 +343,13 @@ export function DataProvider({ children }) {
                 const now = new Date();
                 const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
                 
-                // Si vence en 7 días o menos (y no venció hace más de 1 día)
                 if (diffDays >= 0 && diffDays <= 7) {
                     const horse = horses.find(h => h.id === record.horseId);
                     if (horse && !horse.archived) {
                         const typeName = record.type ? record.type.replace('_', ' ') : 'evento';
-                        // Fix JS Date Timezone bug by parsing string directly YYYY-MM-DD -> DD/MM/YYYY
                         const formattedDate = record.nextDueDate.split('-').reverse().join('/');
                         const message = `Alerta Sanitaria: ${typeName} de ${horse.name} vence en ${diffDays === 0 ? 'hoy' : `${diffDays} días`} (${formattedDate})`;
                         
-                        // Check if notification already exists
                         const alreadySentAdmin = notifications.some(n => n.message === message && n.recipientId === 'ALL_ADMINS');
                         
                         if (!alreadySentAdmin) {
@@ -360,13 +364,9 @@ export function DataProvider({ children }) {
             }
         });
 
-        // Marcar como revisado para no correr este loop exhaustivo con cada cambio de estado,
-        // al menos durante esta sesión, o hasta que se recargue la app.
         setHealthAlertsChecked(true);
         
     }, [healthRecords, horses, notifications, currentUser, healthAlertsChecked]);
-
-    // ====== HELPERS ====== EQUIPMENT_ITEMS HELPERS (D8) ============
 
     const createEquipmentItem = async ({ name, type, brand, condition, usage, notes }) => {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
@@ -382,8 +382,8 @@ export function DataProvider({ children }) {
                 brand: brand?.trim() || null,
                 condition,
                 usage,
-                photoUrl: null,    // RESERVADO TR-37
-                photoPath: null,   // RESERVADO TR-37
+                photoUrl: null,
+                photoPath: null,
                 notes: notes?.trim() || null,
                 createdAt: serverTimestamp(),
                 createdBy: currentUser.uid,
@@ -409,14 +409,12 @@ export function DataProvider({ children }) {
             const data = itemSnap.data();
             if (data.ownerId !== currentUser.uid) return { success: false, error: 'No autorizado.' };
             
-            // Sanear updates: ownerId y tenantId NO se pueden cambiar
             const safeUpdates = { ...updates };
             delete safeUpdates.ownerId;
             delete safeUpdates.tenantId;
             delete safeUpdates.createdAt;
             delete safeUpdates.createdBy;
             
-            // Trim strings opcionales
             if (safeUpdates.brand !== undefined) safeUpdates.brand = safeUpdates.brand?.trim() || null;
             if (safeUpdates.notes !== undefined) safeUpdates.notes = safeUpdates.notes?.trim() || null;
             if (safeUpdates.name !== undefined) safeUpdates.name = safeUpdates.name.trim();
@@ -443,9 +441,6 @@ export function DataProvider({ children }) {
             const data = itemSnap.data();
             if (data.ownerId !== currentUser.uid) return { success: false, error: 'No autorizado.' };
             
-            // NOTA: en D8 no hay foto que borrar. Cuando se implemente TR-37, agregar:
-            // if (data.photoPath) { await deleteObject(ref(storage, data.photoPath)); }
-            
             await deleteDoc(itemRef);
             notify('Item eliminado', 'success');
             return { success: true };
@@ -455,7 +450,6 @@ export function DataProvider({ children }) {
         }
     };
 
-    // Lectura: items del cliente actual
     const getMyEquipmentItems = () => {
         if (!currentUser?.uid) return [];
         return equipmentItems
@@ -467,7 +461,6 @@ export function DataProvider({ children }) {
             });
     };
 
-    // Lectura: items del haras (todos los items donde ownerId esté en lista de uids de tenantAdmins del tenant)
     const getEquipmentItemsByTenantAdmins = () => {
         const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid);
         return equipmentItems
@@ -479,9 +472,6 @@ export function DataProvider({ children }) {
             });
     };
 
-    // @deprecated D7: usar createServiceRequest (cliente solicita servicio) o createSupplyRequest (staff pide insumos).
-    // Aún usada por BoxReservation.jsx hasta que se migre a la web pública del haras (TR-29).
-    // Eliminar de DataContext.jsx cuando ningún call site la use.
     const addRequest = async (requestData) => {
         await addDoc(collection(db, 'REQUESTS'), {
             tenantId: currentTenant.id,
@@ -553,7 +543,7 @@ export function DataProvider({ children }) {
             tenantId: currentTenant.id,
             date: new Date().toISOString(),
             type: 'income',
-            status: 'paid', // Instant
+            status: 'paid',
             ...paymentData
         });
         notify('Pago registrado', 'success');
@@ -565,7 +555,6 @@ export function DataProvider({ children }) {
     };
 
     const addUser = async (userData) => {
-        // En un caso real tendrías un auth trigger o similar. Aquí grabamos info perfil.
         await setDoc(doc(db, 'USERS', userData.uid || userData.email), userData);
         notify('Usuario añadido a BDD', 'success');
     };
@@ -787,17 +776,13 @@ export function DataProvider({ children }) {
             const logRef = doc(collection(db, 'LOGS'));
 
             if (archived) {
-                // 1. Buscar si el caballo está en algún espacio
                 const horseSpace = spaces.find(s => s.horseId === horseId);
-
-                // 2. Marcar caballo como archivado en el batch
                 batch.update(horseRef, {
                     archived: true,
                     archivedAt: new Date().toISOString(),
                     archivedReason: reason || null,
                 });
 
-                // 3. Si tenía espacio asignado, liberarlo en el batch
                 if (horseSpace) {
                     batch.update(doc(db, 'SPACES', horseSpace.id), {
                         status: 'available',
@@ -805,7 +790,6 @@ export function DataProvider({ children }) {
                     });
                 }
 
-                // 4. Log de auditoría en el batch
                 batch.set(logRef, {
                     tenantId: currentTenant.id,
                     timestamp: new Date().toISOString(),
@@ -815,14 +799,12 @@ export function DataProvider({ children }) {
                     details: `Caballo archivado${reason ? ': ' + reason : ''}`,
                 });
             } else {
-                // 1. Desmarcar como archivado en el batch
                 batch.update(horseRef, {
                     archived: false,
                     archivedAt: null,
                     archivedReason: null,
                 });
 
-                // 2. Log de auditoría de reactivación en el batch
                 batch.set(logRef, {
                     tenantId: currentTenant.id,
                     timestamp: new Date().toISOString(),
@@ -833,7 +815,6 @@ export function DataProvider({ children }) {
                 });
             }
 
-            // Ejecutar batch de forma atómica
             await batch.commit();
 
             notify(
@@ -880,18 +861,10 @@ export function DataProvider({ children }) {
         }
     };
     
-    /**
-     * Tanda D2 — Gestión de planes asignados.
-     * Operación atómica: actualiza assignedPlanIds[] del caballo + registra log de auditoría.
-     * Decisión arquitectónica: assignedPlanIds[] como string[] (sin objetos ricos).
-     * Histórico de cambios se reconstruye desde LOGS si se necesita en el futuro.
-     * NO genera cargos automáticos (decisión de producto explícita).
-     */
     const assignPlanToHorse = async (horseId, planId) => {
         if (!horseId || !planId) {
             return { success: false, error: new Error('horseId y planId no pueden estar vacíos') };
         }
-        // Validar que el plan existe en pricingPlans del tenant
         const plan = (pricingPlans || []).find(p => p.id === planId);
         if (!plan) {
             return { success: false, error: new Error(`El plan con ID ${planId} no existe para este tenant`) };
@@ -929,13 +902,6 @@ export function DataProvider({ children }) {
         }
     };
 
-    /**
-     * Tanda D2 — Gestión de planes asignados.
-     * Operación atómica: actualiza assignedPlanIds[] del caballo + registra log de auditoría.
-     * Decisión arquitectónica: assignedPlanIds[] como string[] (sin objetos ricos).
-     * Histórico de cambios se reconstruye desde LOGS si se necesita en el futuro.
-     * NO genera cargos automáticos (decisión de producto explícita).
-     */
     const removePlanFromHorse = async (horseId, planId) => {
         if (!horseId || !planId) {
             return { success: false, error: new Error('horseId y planId no pueden estar vacíos') };
@@ -985,17 +951,14 @@ export function DataProvider({ children }) {
                 return { success: false };
             }
 
-            // ¿El destino está ocupado? → enroque
             const isSwap = toSpace.status === 'occupied' && toSpace.horseId;
             const swappedHorseId = isSwap ? toSpace.horseId : null;
 
-            // 1. Asignar caballo al destino
             await updateDoc(doc(db, 'SPACES', toSpaceId), {
                 status: 'occupied',
                 horseId,
             });
 
-            // 2. Origen: si hay enroque, recibe al otro caballo; sino, queda libre
             if (fromSpaceId) {
                 if (isSwap) {
                     await updateDoc(doc(db, 'SPACES', fromSpaceId), {
@@ -1010,17 +973,14 @@ export function DataProvider({ children }) {
                 }
             }
 
-            // 3. Actualizar location del caballo según tipo de destino
-            const newLocation = toSpace.type === 'box' ? 'box' : toSpace.type; // 'box' | 'corral' | 'paddock'
+            const newLocation = toSpace.type === 'box' ? 'box' : toSpace.type;
             await updateDoc(doc(db, 'HORSES', horseId), { location: newLocation });
 
-            // Si fue enroque, también actualizar el caballo desplazado
             if (isSwap && fromSpace) {
                 const swappedLocation = fromSpace.type === 'box' ? 'box' : fromSpace.type;
                 await updateDoc(doc(db, 'HORSES', swappedHorseId), { location: swappedLocation });
             }
 
-            // 4. Log de auditoría
             const fromName = fromSpace?.name || 'sin asignar';
             const toName = toSpace.name;
             const logDetails = isSwap
@@ -1036,7 +996,6 @@ export function DataProvider({ children }) {
                 details: logDetails,
             });
 
-            // 5. Notificaciones a clientes afectados
             const horse = horses.find(h => h.id === horseId);
             if (horse?.ownerId) {
                 await addDoc(collection(db, 'NOTIFICATIONS'), {
@@ -1077,10 +1036,8 @@ export function DataProvider({ children }) {
 
     const createClientWithHorse = async ({ client, horse, spaceId }) => {
         try {
-            // 1. Generar uid para el cliente nuevo (Firebase usa el email como doc ID en este proyecto)
             const clientDocId = client.email || `client-${Date.now()}`;
 
-            // 2. Crear usuario cliente
             await setDoc(doc(db, 'USERS', clientDocId), {
                 uid: clientDocId,
                 email: client.email,
@@ -1092,7 +1049,6 @@ export function DataProvider({ children }) {
                 createdAt: new Date().toISOString(),
             });
 
-            // 3. Crear caballo y obtener su ID real de Firestore
             const horseRef = await addDoc(collection(db, 'HORSES'), {
                 tenantId: currentTenant.id,
                 ownerId: clientDocId,
@@ -1102,7 +1058,6 @@ export function DataProvider({ children }) {
                 ...horse,
             });
 
-            // 4. Asignar al box (si se pasó spaceId)
             if (spaceId) {
                 await updateDoc(doc(db, 'SPACES', spaceId), {
                     status: 'occupied',
@@ -1110,7 +1065,6 @@ export function DataProvider({ children }) {
                 });
             }
 
-            // 5. Log de auditoría
             await addDoc(collection(db, 'LOGS'), {
                 tenantId: currentTenant.id,
                 timestamp: new Date().toISOString(),
@@ -1142,7 +1096,6 @@ export function DataProvider({ children }) {
                 horseId,
             });
 
-            // Actualizar location del caballo según tipo de espacio
             const newLocation = targetSpace.type === 'box' ? 'box' : targetSpace.type;
             await updateDoc(doc(db, 'HORSES', horseId), { location: newLocation });
 
@@ -1155,7 +1108,6 @@ export function DataProvider({ children }) {
         }
     };
 
-    // --- Health Management ---
     const createHealthRecord = async (data) => {
         try {
             await addDoc(collection(db, 'HEALTH_RECORDS'), {
@@ -1185,7 +1137,6 @@ export function DataProvider({ children }) {
         }
     };
 
-    // --- Directory Management ---
     const createContact = async (data) => {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
         try {
@@ -1257,7 +1208,6 @@ export function DataProvider({ children }) {
         try {
             const batch = writeBatch(db);
             
-            // 1. Crear el cargo
             const newChargeRef = doc(collection(db, 'FINANCES'));
             const chargeData = {
                 tenantId: currentTenant.id,
@@ -1276,7 +1226,6 @@ export function DataProvider({ children }) {
             };
             batch.set(newChargeRef, chargeData);
 
-            // 2. Si se marca como pagado, crear el payment
             let paymentId = null;
             if (markAsPaid) {
                 const newPaymentRef = doc(collection(db, 'FINANCES'));
@@ -1298,7 +1247,6 @@ export function DataProvider({ children }) {
                 });
             }
 
-            // 3. Crear Log
             const newLogRef = doc(collection(db, 'LOGS'));
             if (markAsPaid) {
                 batch.set(newLogRef, {
@@ -1347,11 +1295,9 @@ export function DataProvider({ children }) {
             const createdBy = currentUser.uid;
             const batch = writeBatch(db);
 
-            // 1. Crear referencia para el nuevo PAYMENT (genera ID antes de escribir)
             const newPaymentRef = doc(collection(db, 'FINANCES'));
             const newPaymentId = newPaymentRef.id;
 
-            // 2. SET del PAYMENT en el batch
             batch.set(newPaymentRef, {
                 type: 'payment',
                 status: 'paid',
@@ -1369,7 +1315,6 @@ export function DataProvider({ children }) {
                 createdBy,
             });
 
-            // 3. UPDATE del cargo original en el mismo batch
             const chargeRef = doc(db, 'FINANCES', charge.id);
             batch.update(chargeRef, {
                 status: 'paid',
@@ -1377,7 +1322,6 @@ export function DataProvider({ children }) {
                 paidByPaymentId: newPaymentId,
             });
 
-            // 4. Crear Log
             const newLogRef = doc(collection(db, 'LOGS'));
             batch.set(newLogRef, {
                 type: 'charge_settled',
@@ -1393,7 +1337,6 @@ export function DataProvider({ children }) {
                 note: note.trim() || null
             });
 
-            // 5. Notificación al cliente si está asociado
             if (charge.clientId) {
                 const newNotifRef = doc(collection(db, 'NOTIFICATIONS'));
                 batch.set(newNotifRef, {
@@ -1428,11 +1371,9 @@ export function DataProvider({ children }) {
                 const charge = finances.find(f => f.id === chargeId);
                 if (!charge) continue;
 
-                // 1. Crear referencia para el nuevo PAYMENT
                 const newPaymentRef = doc(collection(db, 'FINANCES'));
                 const newPaymentId = newPaymentRef.id;
 
-                // 2. SET del PAYMENT
                 batch.set(newPaymentRef, {
                     type: 'payment',
                     status: 'paid',
@@ -1450,7 +1391,6 @@ export function DataProvider({ children }) {
                     createdBy,
                 });
 
-                // 3. UPDATE del cargo original
                 const chargeRef = doc(db, 'FINANCES', charge.id);
                 batch.update(chargeRef, {
                     status: 'paid',
@@ -1458,7 +1398,6 @@ export function DataProvider({ children }) {
                     paidByPaymentId: newPaymentId,
                 });
 
-                // 4. Crear Log
                 const newLogRef = doc(collection(db, 'LOGS'));
                 batch.set(newLogRef, {
                     type: 'charge_settled',
@@ -1474,7 +1413,6 @@ export function DataProvider({ children }) {
                     note: note.trim() || null
                 });
 
-                // 5. Notificación al cliente si está asociado
                 if (charge.clientId) {
                     const newNotifRef = doc(collection(db, 'NOTIFICATIONS'));
                     batch.set(newNotifRef, {
@@ -1520,18 +1458,14 @@ export function DataProvider({ children }) {
         let newAuthUser = null;
 
         try {
-            // 1. Crear Auth user en secondary instance
             const userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, client.password);
             newAuthUser = userCred.user;
             const clientUid = newAuthUser.uid;
 
-            // 2. signOut de secondary instance
             await signOut(secondaryAuth);
 
-            // 3. Batch atómico
             const batch = writeBatch(db);
 
-            // Doc USERS
             const userRef = doc(db, 'USERS', clientUid);
             batch.set(userRef, {
                 uid: clientUid,
@@ -1545,7 +1479,6 @@ export function DataProvider({ children }) {
                 createdBy: currentUser.uid
             });
 
-            // Docs HORSES
             const horseIds = [];
             for (const h of horses) {
                 const horseRef = doc(collection(db, 'HORSES'));
@@ -1564,7 +1497,6 @@ export function DataProvider({ children }) {
                 });
             }
 
-            // Doc LOGS
             const logRef = doc(collection(db, 'LOGS'));
             batch.set(logRef, {
                 type: 'client_onboarded',
@@ -1583,7 +1515,6 @@ export function DataProvider({ children }) {
         } catch (error) {
             console.error('Error al crear cliente con caballos:', error);
             
-            // Limpieza si auth se creó pero Firestore falló
             if (newAuthUser) {
                 try {
                     await deleteUser(newAuthUser);
@@ -1604,37 +1535,30 @@ export function DataProvider({ children }) {
         try {
             const batch = writeBatch(db);
 
-            // 1. Delete user from USERS
             batch.delete(doc(db, 'USERS', clientUid));
 
-            // 2. Delete EQUIPMENT_ITEMS
             const clientEquipment = equipmentItems.filter(item => item.ownerId === clientUid);
             clientEquipment.forEach(item => {
                 batch.delete(doc(db, 'EQUIPMENT_ITEMS', item.id));
             });
 
-            // 3. Delete REQUESTS
             const clientRequests = requests.filter(req => req.clientId === clientUid);
             clientRequests.forEach(req => {
                 batch.delete(doc(db, 'REQUESTS', req.id));
             });
 
-            // 4. Delete FINANCES
             const clientFinances = finances.filter(fin => fin.clientId === clientUid);
             clientFinances.forEach(fin => {
                 batch.delete(doc(db, 'FINANCES', fin.id));
             });
 
-            // 5. Delete NOTIFICATIONS
             const clientNotifications = notifications.filter(notif => notif.recipientId === clientUid);
             clientNotifications.forEach(notif => {
                 batch.delete(doc(db, 'NOTIFICATIONS', notif.id));
             });
 
-            // 6. Horses and their sub-resources
             const clientHorses = horses.filter(h => h.ownerId === clientUid);
             clientHorses.forEach(horse => {
-                // Release space
                 const space = spaces.find(s => s.horseId === horse.id);
                 if (space) {
                     batch.update(doc(db, 'SPACES', space.id), {
@@ -1643,29 +1567,24 @@ export function DataProvider({ children }) {
                     });
                 }
 
-                // Delete horse document
                 batch.delete(doc(db, 'HORSES', horse.id));
 
-                // Delete health records
                 const records = healthRecords.filter(r => r.horseId === horse.id);
                 records.forEach(r => {
                     batch.delete(doc(db, 'HEALTH_RECORDS', r.id));
                 });
 
-                // Delete health booklet
                 const booklet = healthBooklets.find(b => b.horseId === horse.id);
                 if (booklet) {
                     batch.delete(doc(db, 'HORSE_HEALTH_BOOKLETS', booklet.id));
                 }
 
-                // Delete logs of the horse
                 const horseLogs = logs.filter(l => l.horseId === horse.id);
                 horseLogs.forEach(l => {
                     batch.delete(doc(db, 'LOGS', l.id));
                 });
             });
 
-            // 7. Audit Log
             const logRef = doc(collection(db, 'LOGS'));
             batch.set(logRef, {
                 tenantId: currentTenant.id,
@@ -1810,7 +1729,7 @@ export function DataProvider({ children }) {
             if (!record.nextDueDate) continue;
             const dueDate = new Date(record.nextDueDate);
             if (dueDate < now) {
-                return 'vencido'; // El más severo gana
+                return 'vencido';
             }
             if (dueDate <= thirtyDaysFromNow) {
                 status = 'proximo';
@@ -1901,8 +1820,9 @@ export function DataProvider({ children }) {
 
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
-        tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
+        tenantUsers, tenantSettings, inventory, servicesCatalog, inventoryLogs, payrollAdvances,
         notifications, events, healthRecords, healthBooklets, directoryContacts, equipmentItems, tenantRoles,
+        loading,
         
         createEquipmentItem, updateEquipmentItem, deleteEquipmentItem,
         getMyEquipmentItems, getEquipmentItemsByTenantAdmins,
