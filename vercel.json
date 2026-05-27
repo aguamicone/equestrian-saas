@@ -9,6 +9,10 @@
                 }
             ],
             "destination": "/?tenant=$tenant"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ],
     "headers": [

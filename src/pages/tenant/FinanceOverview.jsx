@@ -8,7 +8,7 @@ import PricingPlanModal from '../../components/finanzas/modals/PricingPlanModal'
 import MarkAsPaidModal from '../../components/horses/modals/MarkAsPaidModal';
 
 export default function FinanceOverview() {
-    const { finances, pricingPlans, tenantUsers, deletePendingCharge } = useData();
+    const { finances, pricingPlans, tenantUsers, deletePendingCharge, deleteRow } = useData();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Modal State
@@ -22,6 +22,17 @@ export default function FinanceOverview() {
     const handleDeleteCharge = async (charge) => {
         if (window.confirm(`¿Estás seguro de que deseas eliminar este cargo pendiente de $${charge.amount}?`)) {
             await deletePendingCharge(charge.id);
+        }
+    };
+
+    const handleDeletePlan = async (plan) => {
+        if (window.confirm(`¿Borrar definitivamente "${plan.name}"?\n\nNo afectará la historia (los cobros pasados ya generados quedan intactos).`)) {
+            try {
+                await deleteRow('PRICING_PLANS', plan.id);
+            } catch (error) {
+                console.error(error);
+                alert("Error al borrar el plan.");
+            }
         }
     };
 
@@ -256,13 +267,20 @@ export default function FinanceOverview() {
                                                 </td>
                                                 <td className="p-4 text-sm text-ink-700 capitalize">{plan.frequency === 'monthly' ? 'Mensual' : 'Pago Único'}</td>
                                                 <td className="p-4 font-mono text-primary-700 font-bold">${plan.price.toLocaleString()}</td>
-                                                <td className="p-4 text-right">
+                                                <td className="p-4 text-right flex items-center justify-end gap-1">
                                                     <button 
                                                         onClick={() => handleOpenModal(plan)} 
                                                         className="p-2 hover:bg-ink-100 rounded-lg text-ink-500 hover:text-ink-900 transition-colors inline-flex items-center justify-center"
                                                         title="Editar Plan"
                                                     >
                                                         <Edit size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeletePlan(plan)} 
+                                                        className="p-2 hover:bg-danger-50 rounded-lg text-ink-500 hover:text-danger-600 transition-colors inline-flex items-center justify-center"
+                                                        title="Eliminar Plan"
+                                                    >
+                                                        <Trash2 size={18} />
                                                     </button>
                                                 </td>
                                             </tr>

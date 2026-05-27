@@ -9,7 +9,7 @@ export default function NotificationBell({ variant = 'light' }) {
 
     // Estandarizado al tema Cielo y Campo
     const styles = {
-        button: 'relative p-2 text-ink-650 hover:text-ink-800 transition-colors rounded-full hover:bg-ink-100/70',
+        button: 'relative p-2 text-ink-600 hover:text-ink-800 transition-colors rounded-full hover:bg-ink-100/70',
         badge: 'absolute top-1 right-1 h-2.5 w-2.5 bg-danger-500 rounded-full border border-white animate-pulse',
         dropdown: 'absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-card border border-ink-200 z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right',
         dropdownHeader: 'px-4 py-3 border-b border-ink-200 bg-ink-50/50 flex justify-between items-center',
@@ -27,8 +27,9 @@ export default function NotificationBell({ variant = 'light' }) {
         markReadBtn: 'text-ink-400 hover:text-success-600 p-1 rounded transition-colors hover:bg-ink-100'
     };
 
-    const unreadCount = notifications.filter(n => !n.read).length;
-    const sortedNotifications = [...notifications].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const unreadNotifications = notifications.filter(n => !n.read);
+    const unreadCount = unreadNotifications.length;
+    const sortedNotifications = [...unreadNotifications].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // Close on click outside
     useEffect(() => {

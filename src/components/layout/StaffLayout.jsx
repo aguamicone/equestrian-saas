@@ -39,19 +39,35 @@ export default function StaffLayout() {
 
             {/* Bottom Navigation - Light styled bar */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-ink-200 flex justify-around items-stretch z-50 safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.05)] h-[64px]">
-                <button onClick={() => navigate('/staff')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff')}`}>
-                    <Home size={22} />
-                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff' ? 'opacity-100' : 'opacity-70'}`}>Inicio</span>
+                <button 
+                    onClick={() => navigate('/staff')} 
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff', true) ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                >
+                    <Home size={22} className={isActive('/staff', true) ? 'fill-primary-50 text-primary-600' : ''} />
+                    <span className="text-[10px] font-medium">Inicio</span>
                 </button>
-                <button onClick={() => navigate('/staff/tasks')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/tasks')}`}>
-                    <ClipboardList size={22} />
-                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/tasks' ? 'opacity-100' : 'opacity-70'}`}>Tareas</span>
+                
+                <button 
+                    onClick={() => navigate('/staff/horses')} 
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/horses') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                >
+                    <Activity size={22} className={isActive('/staff/horses') ? 'fill-primary-50 text-primary-600' : ''} />
+                    <span className="text-[10px] font-medium">Caballos</span>
                 </button>
-                <button onClick={() => navigate('/staff/log')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/log')}`}>
+
+                <button 
+                    onClick={() => navigate('/staff/routines')} 
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/routines') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                >
+                    <Calendar size={22} className={isActive('/staff/routines') ? 'fill-primary-50 text-primary-600' : ''} />
+                    <span className="text-[10px] font-medium">Rutinas</span>
+                </button>
+
+                <button onClick={() => navigate('/staff/log')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${location.pathname === '/staff/log' ? 'text-primary-600' : 'text-ink-400'}`}>
                     <PenTool size={22} />
                     <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/log' ? 'opacity-100' : 'opacity-70'}`}>Registro</span>
                 </button>
-                <button onClick={() => navigate('/staff/supplies')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/supplies')}`}>
+                <button onClick={() => navigate('/staff/supplies')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${location.pathname === '/staff/supplies' ? 'text-primary-600' : 'text-ink-400'}`}>
                     <ShoppingBag size={22} />
                     <span className={`text-[10px] tracking-wide font-medium flex gap-0.5 flex-col xs:flex-row items-center ${location.pathname === '/staff/supplies' ? 'opacity-100' : 'opacity-70'}`}><span>Insumos</span></span>
                 </button>

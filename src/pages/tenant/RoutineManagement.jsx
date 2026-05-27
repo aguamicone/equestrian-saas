@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import { Plus, Trash2, User, Clock, Repeat, CalendarDays, Calendar } from 'lucide-react';
-import { PageHeader, Card, DataTable, Modal, Badge, EmptyState } from '../../components/ui';
+import { Plus, Trash2, Clock, Repeat, CalendarDays, Calendar } from 'lucide-react';
+import { PageHeader, DataTable, Modal, Badge } from '../../components/ui';
+import RoutinesView from './RoutinesView';
 
-// Días de la semana (orden lunes a domingo, como usamos en LATAM)
 const WEEK_DAYS = [
     { key: 'lun', label: 'L', full: 'Lunes' },
     { key: 'mar', label: 'M', full: 'Martes' },
@@ -14,7 +14,6 @@ const WEEK_DAYS = [
     { key: 'dom', label: 'D', full: 'Domingo' },
 ];
 
-// Configs predefinidas de frecuencia
 const FREQ_PRESETS = {
     daily:       { label: 'Diario',        days: ['lun','mar','mie','jue','vie','sab','dom'] },
     weekdays:    { label: 'Lunes a viernes', days: ['lun','mar','mie','jue','vie'] },
@@ -24,23 +23,21 @@ const FREQ_PRESETS = {
 
 export default function RoutineManagement() {
     const { routines, addRoutine, deleteRow, tenantUsers } = useData();
-    const [showForm, setShowForm] = useState(false);
+    const [activeTab, setActiveTab] = useState('calendar'); // 'calendar' | 'general'
 
-    // Form state
+    const [showForm, setShowForm] = useState(false);
     const [name, setName] = useState('');
     const [time, setTime] = useState('');
     const [assignedTo, setAssignedTo] = useState('');
-    const [freqMode, setFreqMode] = useState('daily'); // 'daily' | 'weekdays' | 'weekends' | 'custom'
+    const [freqMode, setFreqMode] = useState('daily'); 
     const [customDays, setCustomDays] = useState([]);
-
-    // Confirmación de borrado
     const [routineToDelete, setRoutineToDelete] = useState(null);
 
-    // Solo staff
     const staffMembers = useMemo(() => (tenantUsers || []).filter(u => u.role === 'staff'), [tenantUsers]);
-
-    // Días efectivos según el modo seleccionado
     const effectiveDays = freqMode === 'custom' ? customDays : FREQ_PRESETS[freqMode].days;
+
+    // Solo filtramos las rutinas que no tienen horseId para la tabla de tareas generales
+    const generalRoutines = routines.filter(r => !r.horseId);
 
     const resetForm = () => {
         setName('');
@@ -61,8 +58,6 @@ export default function RoutineManagement() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
-        // Validación: si es custom, debe tener al menos un día seleccionado
         if (freqMode === 'custom' && customDays.length === 0) {
             alert('Seleccioná al menos un día.');
             return;
@@ -73,14 +68,13 @@ export default function RoutineManagement() {
         addRoutine({
             name,
             time,
-            // Nuevos campos
             frequencyMode: freqMode,
             frequencyDays: effectiveDays,
             frequencyLabel: getFrequencyLabel(freqMode, effectiveDays),
-            // Legacy: mantenemos "frequency" como string para compatibilidad
             frequency: getFrequencyLabel(freqMode, effectiveDays),
             assigneeId: assignedTo || null,
             assigneeName: assignee ? assignee.displayName : null,
+            routineType: 'recurring_general' // Flag to identify general recurring tasks
         });
 
         resetForm();
@@ -93,11 +87,10 @@ export default function RoutineManagement() {
         }
     };
 
-    // Definición de columnas para la DataTable
     const columns = [
         {
             key: 'name',
-            header: 'Rutina',
+            header: 'Rutina General',
             render: (r) => (
                 <div className="font-medium text-ink-800">{r.name}</div>
             ),
@@ -129,7 +122,7 @@ export default function RoutineManagement() {
                         <span className="text-ink-700">{r.assigneeName}</span>
                     </div>
                 ) : (
-                    <Badge variant="neutral" size="sm">General</Badge>
+                    <Badge variant="neutral" size="sm">Cualquiera</Badge>
                 )
             ),
         },
@@ -151,53 +144,89 @@ export default function RoutineManagement() {
     ];
 
     return (
-        <div>
+        <div className="space-y-6 flex flex-col h-full min-h-[600px]">
             <PageHeader
-                icon={Repeat}
-                title="Gestión de rutinas"
-                subtitle="Tareas recurrentes asignadas al personal"
-                actions={
-                    <button onClick={() => setShowForm(true)} className="btn-primary">
-                        <Plus size={16} strokeWidth={2} /> Nueva rutina
-                    </button>
-                }
+                icon={Calendar}
+                title="Centro de Rutinas"
+                subtitle="Gestión unificada del calendario y de las tareas generales del establecimiento."
             />
 
-            <DataTable
-                columns={columns}
-                data={routines}
-                emptyMessage="Aún no hay rutinas definidas"
-                emptyIcon={Repeat}
-            />
+            {/* Pestañas (Tabs) */}
+            <div className="flex items-center gap-6 border-b border-ink-200 shrink-0 overflow-x-auto custom-scrollbar">
+                <button
+                    onClick={() => setActiveTab('calendar')}
+                    className={`py-3 px-1 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === 'calendar' 
+                            ? 'border-primary-600 text-primary-700' 
+                            : 'border-transparent text-ink-500 hover:text-ink-700'
+                    }`}
+                >
+                    Calendario de Caballos
+                </button>
+                <button
+                    onClick={() => setActiveTab('general')}
+                    className={`py-3 px-1 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === 'general' 
+                            ? 'border-primary-600 text-primary-700' 
+                            : 'border-transparent text-ink-500 hover:text-ink-700'
+                    }`}
+                >
+                    Tareas Generales (Haras)
+                </button>
+            </div>
 
-            {/* Modal: nueva rutina */}
+            {/* Contenido de los Tabs */}
+            <div className="flex-1 min-h-0">
+                {activeTab === 'calendar' && (
+                    <div className="h-full">
+                        <RoutinesView />
+                    </div>
+                )}
+
+                {activeTab === 'general' && (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <h3 className="text-lg font-bold text-ink-900">Tareas Generales</h3>
+                                <p className="text-sm text-ink-500">Mantenimiento, limpieza, alimentación y otros trabajos del personal.</p>
+                            </div>
+                            <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2 h-10">
+                                <Plus size={16} strokeWidth={2} /> Nueva Tarea General
+                            </button>
+                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={generalRoutines}
+                            emptyMessage="Aún no hay tareas generales definidas"
+                            emptyIcon={Repeat}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Modal: nueva rutina general */}
             <Modal
-                open={showForm}
+                isOpen={showForm}
                 onClose={resetForm}
-                title="Crear tarea recurrente"
-                subtitle="Definí una tarea que se repite con la frecuencia que elijas"
+                title="Crear Tarea General Recurrente"
                 size="lg"
                 footer={
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 w-full">
                         <button type="button" onClick={resetForm} className="btn-secondary">
                             Cancelar
                         </button>
-                        <button type="submit" form="routine-form" className="btn-primary">
-                            Guardar rutina
+                        <button type="submit" form="general-routine-form" className="btn-primary">
+                            Guardar Tarea
                         </button>
                     </div>
                 }
             >
-                <form id="routine-form" onSubmit={handleSubmit} className="space-y-5">
-
-                    {/* Nombre */}
+                <form id="general-routine-form" onSubmit={handleSubmit} className="space-y-5 p-1">
                     <div>
-                        <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                            Nombre de la tarea
-                        </label>
+                        <label className="block text-sm font-medium text-ink-700 mb-1.5">Nombre de la tarea</label>
                         <input
                             className="input-field"
-                            placeholder="Ej: Limpieza boxes fila 1"
+                            placeholder="Ej: Limpieza general de boxes"
                             value={name}
                             onChange={e => setName(e.target.value)}
                             required
@@ -205,11 +234,8 @@ export default function RoutineManagement() {
                         />
                     </div>
 
-                    {/* Frecuencia */}
                     <div>
-                        <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                            Frecuencia
-                        </label>
+                        <label className="block text-sm font-medium text-ink-700 mb-1.5">Frecuencia</label>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                             {Object.entries(FREQ_PRESETS).map(([key, preset]) => (
                                 <button
@@ -229,7 +255,6 @@ export default function RoutineManagement() {
                             ))}
                         </div>
 
-                        {/* Selector de días — visible siempre que NO sea Diario */}
                         {freqMode !== 'daily' && (
                             <div className={`
                                 p-3 rounded-lg border bg-sky-50/50 border-sky-200
@@ -237,10 +262,7 @@ export default function RoutineManagement() {
                             `}>
                                 <div className="text-[11px] text-ink-500 mb-2 flex items-center gap-1.5">
                                     <CalendarDays size={12} />
-                                    {freqMode === 'custom'
-                                        ? 'Seleccioná los días'
-                                        : 'Días incluidos (no editable en este modo)'
-                                    }
+                                    {freqMode === 'custom' ? 'Seleccioná los días' : 'Días incluidos'}
                                 </div>
                                 <div className="flex gap-1.5 flex-wrap">
                                     {WEEK_DAYS.map(day => {
@@ -251,13 +273,9 @@ export default function RoutineManagement() {
                                                 key={day.key}
                                                 onClick={() => freqMode === 'custom' && toggleCustomDay(day.key)}
                                                 disabled={freqMode !== 'custom'}
-                                                title={day.full}
                                                 className={`
                                                     w-9 h-9 rounded-lg text-xs font-medium transition-all
-                                                    ${isSelected
-                                                        ? 'bg-primary-500 text-white shadow-sm'
-                                                        : 'bg-white text-ink-500 border border-ink-200 hover:border-primary-300 hover:text-primary-600'
-                                                    }
+                                                    ${isSelected ? 'bg-primary-500 text-white shadow-sm' : 'bg-white text-ink-500 border border-ink-200 hover:border-primary-300 hover:text-primary-600'}
                                                     ${freqMode !== 'custom' ? 'cursor-default' : 'cursor-pointer'}
                                                 `}
                                             >
@@ -270,12 +288,9 @@ export default function RoutineManagement() {
                         )}
                     </div>
 
-                    {/* Horario + Asignación (en 2 columnas) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                                Horario sugerido
-                            </label>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Horario sugerido</label>
                             <input
                                 type="time"
                                 className="input-field"
@@ -285,9 +300,7 @@ export default function RoutineManagement() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                                Asignar a personal
-                            </label>
+                            <label className="block text-sm font-medium text-ink-700 mb-1.5">Asignar a personal</label>
                             <select
                                 className="input-field"
                                 value={assignedTo}
@@ -295,27 +308,22 @@ export default function RoutineManagement() {
                             >
                                 <option value="">-- Cualquiera --</option>
                                 {staffMembers.map(staff => (
-                                    <option key={staff.uid} value={staff.uid}>
-                                        {staff.displayName}
-                                    </option>
+                                    <option key={staff.uid} value={staff.uid}>{staff.displayName}</option>
                                 ))}
                             </select>
-                            <p className="text-[11px] text-ink-500 mt-1">
-                                Dejá vacío para tarea general
-                            </p>
+                            <p className="text-[11px] text-ink-500 mt-1">Dejá vacío para tarea general conjunta</p>
                         </div>
                     </div>
                 </form>
             </Modal>
 
-            {/* Modal de confirmación de borrado */}
             <Modal
-                open={!!routineToDelete}
+                isOpen={!!routineToDelete}
                 onClose={() => setRoutineToDelete(null)}
-                title="¿Eliminar rutina?"
+                title="¿Eliminar rutina general?"
                 size="sm"
                 footer={
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 w-full">
                         <button onClick={() => setRoutineToDelete(null)} className="btn-secondary">
                             Cancelar
                         </button>
@@ -327,50 +335,29 @@ export default function RoutineManagement() {
             >
                 <p className="text-sm text-ink-700">
                     Vas a eliminar <span className="font-medium text-ink-800">"{routineToDelete?.name}"</span>.
-                    Esta acción no se puede deshacer.
+                    Esta acción borrará la tarea del calendario de todos los días.
                 </p>
             </Modal>
         </div>
     );
 }
 
-// ====== Sub-componente: Badge de frecuencia ======
-// Muestra la frecuencia de manera legible según el modo
 function FrequencyBadge({ routine }) {
-    // Compatibilidad con rutinas viejas que solo tenían "frequency: 'Diario'"
     const mode = routine.frequencyMode || 'daily';
     const days = routine.frequencyDays || ['lun','mar','mie','jue','vie','sab','dom'];
 
-    // Caso simple: presets conocidos → badge directo
-    if (mode === 'daily') {
-        return <Badge variant="primary" size="sm" icon={Repeat}>Diario</Badge>;
-    }
-    if (mode === 'weekdays') {
-        return <Badge variant="sky" size="sm" icon={CalendarDays}>L–V</Badge>;
-    }
-    if (mode === 'weekends') {
-        return <Badge variant="gold" size="sm" icon={CalendarDays}>Fin de semana</Badge>;
-    }
+    if (mode === 'daily') return <Badge variant="primary" size="sm" icon={Repeat}>Diario</Badge>;
+    if (mode === 'weekdays') return <Badge variant="sky" size="sm" icon={CalendarDays}>L–V</Badge>;
+    if (mode === 'weekends') return <Badge variant="gold" size="sm" icon={CalendarDays}>Fin de semana</Badge>;
 
-    // Custom: mostrar las iniciales de los días
-    const labels = WEEK_DAYS
-        .filter(d => days.includes(d.key))
-        .map(d => d.label)
-        .join('·');
-
-    return (
-        <Badge variant="neutral" size="sm" icon={Calendar}>
-            {labels || '—'}
-        </Badge>
-    );
+    const labels = WEEK_DAYS.filter(d => days.includes(d.key)).map(d => d.label).join('·');
+    return <Badge variant="neutral" size="sm" icon={Calendar}>{labels || '—'}</Badge>;
 }
 
-// ====== Helper: label legible para guardar en DB ======
 function getFrequencyLabel(mode, days) {
     if (mode === 'daily') return 'Diario';
     if (mode === 'weekdays') return 'Lun–Vie';
     if (mode === 'weekends') return 'Sáb–Dom';
-    // Custom
     const labels = WEEK_DAYS.filter(d => days.includes(d.key)).map(d => d.full);
     return labels.join(', ');
 }

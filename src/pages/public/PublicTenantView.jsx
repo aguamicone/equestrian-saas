@@ -190,31 +190,10 @@ export default function PublicTenantView() {
                                         <div>
                                             <h3 className="text-xl font-bold text-ink-900 mb-2">{plan.name}</h3>
                                             <div className="mb-4">
-                                                <span className="text-3xl font-extrabold text-ink-900">${plan.amount}</span>
-                                                <span className="text-ink-500 font-medium text-sm"> / mes</span>
+                                                <span className="text-3xl font-extrabold text-ink-900">${Number(plan.price || 0).toLocaleString()}</span>
+                                                {plan.frequency === 'monthly' && <span className="text-ink-500 font-medium text-sm"> / mes</span>}
                                             </div>
                                             <p className="text-sm text-ink-600 mb-6 min-h-[40px]">{plan.description}</p>
-                                            
-                                            <ul className="space-y-3 mb-8">
-                                                <li className="flex items-start gap-2 text-sm text-ink-700">
-                                                    <CheckCircle2 size={16} className="text-success-500 shrink-0 mt-0.5"/>
-                                                    <span>Box {plan.spaceType === 'corral' ? 'en Piquete/Corral' : 'Estándar'}</span>
-                                                </li>
-                                                <li className="flex items-start gap-2 text-sm text-ink-700">
-                                                    <CheckCircle2 size={16} className="text-success-500 shrink-0 mt-0.5"/>
-                                                    <span>Incluye Ración y Cama</span>
-                                                </li>
-                                                <li className="flex items-start gap-2 text-sm text-ink-700">
-                                                    <CheckCircle2 size={16} className="text-success-500 shrink-0 mt-0.5"/>
-                                                    <span>Acceso a Pista</span>
-                                                </li>
-                                                {index > 0 && (
-                                                    <li className="flex items-start gap-2 text-sm text-ink-700">
-                                                        <CheckCircle2 size={16} className="text-success-500 shrink-0 mt-0.5"/>
-                                                        <span className="font-medium">Limpieza Extra Premium</span>
-                                                    </li>
-                                                )}
-                                            </ul>
                                         </div>
                                         <button onClick={contactClub} className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-sm flex items-center justify-center gap-2 ${index === 1 ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95' : 'bg-ink-100 text-ink-800 hover:bg-ink-200 active:scale-95'}`}>
                                             <MessageCircle size={18}/> Me Interesa
