@@ -318,7 +318,51 @@ export function DataProvider({ children }) {
         }
     };
 
-    // ============ EQUIPMENT_ITEMS HELPERS (D8) ============
+    // --- Check Health Alerts ---
+    // Se ejecuta una vez por sesión para generar notificaciones proactivas de salud
+    const [healthAlertsChecked, setHealthAlertsChecked] = useState(false);
+
+    useEffect(() => {
+        if (!currentUser || currentUser.role !== 'tenantAdmin') return;
+        if (healthRecords.length === 0 || horses.length === 0 || healthAlertsChecked) return;
+
+        let sentAny = false;
+
+        healthRecords.forEach(record => {
+            if (record.nextDueDate) {
+                const dueDate = new Date(record.nextDueDate);
+                const now = new Date();
+                const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                
+                // Si vence en 7 días o menos (y no venció hace más de 1 día)
+                if (diffDays >= 0 && diffDays <= 7) {
+                    const horse = horses.find(h => h.id === record.horseId);
+                    if (horse && !horse.archived) {
+                        const typeName = record.type ? record.type.replace('_', ' ') : 'evento';
+                        const message = `Alerta Sanitaria: ${typeName} de ${horse.name} vence en ${diffDays === 0 ? 'hoy' : `${diffDays} días`} (${new Date(record.nextDueDate).toLocaleDateString()})`;
+                        
+                        // Check if notification already exists
+                        const alreadySentAdmin = notifications.some(n => n.message === message && n.recipientId === 'ALL_ADMINS');
+                        
+                        if (!alreadySentAdmin) {
+                            sendNotification('ALL_ADMINS', message, 'warning');
+                            if (horse.ownerId) {
+                                sendNotification(horse.ownerId, message, 'warning');
+                            }
+                            sentAny = true;
+                        }
+                    }
+                }
+            }
+        });
+
+        // Marcar como revisado para no correr este loop exhaustivo con cada cambio de estado,
+        // al menos durante esta sesión, o hasta que se recargue la app.
+        setHealthAlertsChecked(true);
+        
+    }, [healthRecords, horses, notifications, currentUser, healthAlertsChecked]);
+
+    // ====== HELPERS ====== EQUIPMENT_ITEMS HELPERS (D8) ============
 
     const createEquipmentItem = async ({ name, type, brand, condition, usage, notes }) => {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };

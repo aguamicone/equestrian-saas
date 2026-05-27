@@ -2,13 +2,15 @@ import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { PageHeader, Badge, DataTable } from '../../components/ui';
 import HealthRecordModal from '../../components/health/modals/HealthRecordModal';
-import { Stethoscope, AlertTriangle, Clock, Calendar, FileX, Syringe, Pill, Activity, CalendarCheck } from 'lucide-react';
+import BulkHealthRecordModal from '../../components/health/modals/BulkHealthRecordModal';
+import { Stethoscope, AlertTriangle, Clock, Calendar, FileX, Syringe, Pill, Activity, CalendarCheck, Layers } from 'lucide-react';
 
 export default function HealthManagement() {
   const { horses, healthRecords, healthBooklets, getHealthStatusByHorse, getHealthBookletByHorse } = useData();
   const [selectedHorse, setSelectedHorse] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, expired, upcoming, ok, no_booklet
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   // --- Calculations ---
   const activeHorses = useMemo(() => horses.filter(h => !h.archived), [horses]);
@@ -228,17 +230,26 @@ export default function HealthManagement() {
             <FilterChip label="Sin libreta" active={statusFilter === 'no_booklet'} onClick={() => setStatusFilter('no_booklet')} />
           </div>
           
-          <div className="relative w-full sm:w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Syringe className="h-4 w-4 text-ink-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar caballo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Syringe className="h-4 w-4 text-ink-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar caballo..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+                />
+              </div>
+              <button 
+                onClick={() => setShowBulkModal(true)}
+                className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                 <Layers size={16} />
+                 Registro Masivo
+              </button>
           </div>
         </div>
 
@@ -263,6 +274,13 @@ export default function HealthManagement() {
         <HealthRecordModal 
           horse={selectedHorse} 
           onClose={() => setSelectedHorse(null)} 
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkHealthRecordModal
+           horses={activeHorses}
+           onClose={() => setShowBulkModal(false)}
         />
       )}
     </div>
