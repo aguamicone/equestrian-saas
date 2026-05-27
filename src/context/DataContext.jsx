@@ -36,6 +36,7 @@ export function DataProvider({ children }) {
     const [events, setEvents] = useState([]);
     const [healthRecords, setHealthRecords] = useState([]);
     const [healthBooklets, setHealthBooklets] = useState([]);
+    const [directoryContacts, setDirectoryContacts] = useState([]);
     const [tenantSettings, setTenantSettings] = useState(null);
     const [equipmentItems, setEquipmentItems] = useState([]);
     const [tenantRoles, setTenantRoles] = useState([]);
@@ -46,7 +47,7 @@ export function DataProvider({ children }) {
             setSpaces([]); setHorses([]); setFinances([]); setLogs([]); setRequests([]);
             setRoutines([]); setPricingPlans([]); setShifts([]); setTenantUsers([]);
             setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
-            setEvents([]); setHealthRecords([]); setHealthBooklets([]);
+            setEvents([]); setHealthRecords([]); setHealthBooklets([]); setDirectoryContacts([]);
             setTenantSettings(null);
             setEquipmentItems([]);
             setTenantRoles([]);
@@ -63,7 +64,7 @@ export function DataProvider({ children }) {
             setSpaces([]); setHorses([]); setFinances([]); setLogs([]); setRequests([]);
             setRoutines([]); setPricingPlans([]); setShifts([]); setTenantUsers([]);
             setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
-            setEvents([]); setHealthRecords([]); setHealthBooklets([]);
+            setEvents([]); setHealthRecords([]); setHealthBooklets([]); setDirectoryContacts([]);
             setEquipmentItems([]);
             setTenantRoles([]);
             setNotifications([]);
@@ -112,6 +113,7 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('EVENTS', setEvents));
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
+        unsubs.push(subscribe('DIRECTORY', setDirectoryContacts));
         unsubs.push(subscribe('USERS', setTenantUsers));
         unsubs.push(subscribe('TENANT_ROLES', setTenantRoles));
         if (currentUser?.role !== 'client') {
@@ -1174,10 +1176,51 @@ export function DataProvider({ children }) {
     };
 
     const deleteHealthRecord = async (id) => {
+        if (!currentTenant?.id) return;
         try {
             await deleteDoc(doc(db, 'HEALTH_RECORDS', id));
-            notify('Registro sanitario eliminado', 'success');
-        } catch(e) { console.error(e); notify("Error al eliminar", "error"); }
+        } catch (error) {
+            console.error('Error in deleteHealthRecord:', error);
+            throw error;
+        }
+    };
+
+    // --- Directory Management ---
+    const createContact = async (data) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        try {
+            const newDoc = await addDoc(collection(db, 'DIRECTORY'), {
+                ...data,
+                tenantId: currentTenant.id,
+                createdAt: new Date().toISOString()
+            });
+            return { success: true, id: newDoc.id };
+        } catch (error) {
+            console.error('Error in createContact:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const updateContact = async (id, data) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        try {
+            await updateDoc(doc(db, 'DIRECTORY', id), data);
+            return { success: true };
+        } catch (error) {
+            console.error('Error in updateContact:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteContact = async (id) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        try {
+            await deleteDoc(doc(db, 'DIRECTORY', id));
+            return { success: true };
+        } catch (error) {
+            console.error('Error in deleteContact:', error);
+            return { success: false, error: error.message };
+        }
     };
 
     const upsertHealthBooklet = async (horseId, data) => {
@@ -1859,7 +1902,7 @@ export function DataProvider({ children }) {
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
-        notifications, events, healthRecords, healthBooklets, equipmentItems, tenantRoles,
+        notifications, events, healthRecords, healthBooklets, directoryContacts, equipmentItems, tenantRoles,
         
         createEquipmentItem, updateEquipmentItem, deleteEquipmentItem,
         getMyEquipmentItems, getEquipmentItemsByTenantAdmins,
@@ -1875,7 +1918,8 @@ export function DataProvider({ children }) {
         settlePendingCharge, settleMultiplePendingCharges, editPendingCharge, deletePendingCharge,
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
-        getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse
+        getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse,
+        createContact, updateContact, deleteContact
     };
 
     return (

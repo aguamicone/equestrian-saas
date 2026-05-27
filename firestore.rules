@@ -452,6 +452,25 @@ service cloud.firestore {
       );
     }
 
+    // ----- DIRECTORY (Contactos Útiles) -----
+    // Read: superAdmin o miembros del tenant (clientes, staff, admins)
+    // Create/Update/Delete: solo tenantAdmin
+    match /DIRECTORY/{contactId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+    }
+
     // ----- TENANT_ROLES -----
     // Read: superAdmin o miembros del tenant (necesario para UI condicional)
     // Create/Update/Delete: solo tenantAdmin

@@ -25,6 +25,7 @@ import InventoryManager from './pages/tenant/InventoryManager'; // Fix: Import a
 import TenantEquipment from './pages/tenant/TenantEquipment';
 import UserManagement from './pages/tenant/UserManagement';
 import EventsManager from './pages/tenant/EventsManager';
+import AdminDirectoryView from './pages/tenant/AdminDirectoryView';
 
 // Client
 import ClientDashboard from './pages/dashboards/ClientDashboard';
@@ -43,6 +44,7 @@ import StaffDashboard from './pages/dashboards/StaffDashboard';
 import TaskManager from './pages/staff/TaskManager';
 import QuickLog from './pages/staff/QuickLog';
 import StaffSupplies from './pages/staff/StaffSupplies';
+import DirectoryView from './pages/common/DirectoryView';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import SuperAdminLayout from './components/layout/SuperAdminLayout';
@@ -93,6 +95,7 @@ function App() {
                                 <Route path="users" element={<UserManagement />} />
                                 <Route path="events" element={<EventsManager />} />
                                 <Route path="settings" element={<TenantSettings />} />
+                                <Route path="directory" element={<AdminDirectoryView />} />
                             </Route>
 
                             {/* Client/Owner Routes */}
@@ -111,6 +114,7 @@ function App() {
                                 <Route path="events" element={<Events />} />
                                 <Route path="equipment" element={<ClientEquipment />} />
                                 <Route path="calendar" element={<ClientRoutinesView />} />
+                                <Route path="directory" element={<DirectoryView />} />
                             </Route>
 
                             {/* Staff Routes */}
@@ -124,6 +128,7 @@ function App() {
                                 <Route path="log" element={<QuickLog />} />
                                 <Route path="supplies" element={<StaffSupplies />} />
                                 <Route path="events" element={<Events />} />
+                                <Route path="directory" element={<DirectoryView />} />
                             </Route>
 
                             <Route path="*" element={<Navigate to="/login" replace />} />

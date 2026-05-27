@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import {
   LogOut, LayoutDashboard, Ticket, Users, DollarSign, Settings,
-  ClipboardList, Syringe, Activity, ShoppingBag, ChevronRight, Briefcase
+  ClipboardList, Syringe, Activity, ShoppingBag, ChevronRight, Briefcase, BookOpen
 } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 
@@ -61,6 +61,7 @@ export default function TenantAdminLayout() {
         { to: '/tenant-admin/equipment',        icon: Briefcase,  label: 'Inventario Equipos', mod: 'inventory' },
         { to: '/tenant-admin/events',           icon: Ticket,     label: 'Eventos', mod: 'dashboard' },
         { to: '/tenant-admin/health',           icon: Syringe,    label: 'Sanidad', mod: 'health' },
+        { to: '/tenant-admin/directory',        icon: BookOpen,   label: 'Contactos útiles', mod: 'health' },
         { to: '/tenant-admin/activity',         icon: Activity,   label: 'Actividad', mod: 'dashboard' },
       ].filter(i => hasAccess(i.mod)),
     },

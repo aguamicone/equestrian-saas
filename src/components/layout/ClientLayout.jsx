@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users, Briefcase, Calendar } from 'lucide-react';
+import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users, Briefcase, Calendar, BookOpen } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 import { useState } from 'react';
 
@@ -85,6 +85,9 @@ export default function ClientLayout() {
                             </button>
                             <button onClick={() => { navigate('/client/events'); setMenuOpen(false); }} className="flex items-center gap-3 text-ink-700 hover:text-primary-700 hover:bg-primary-50 px-3 py-2.5 rounded-lg w-full transition-colors text-sm font-medium">
                                 <Ticket size={18} /> Eventos
+                            </button>
+                            <button onClick={() => { navigate('/client/directory'); setMenuOpen(false); }} className="flex items-center gap-3 text-ink-700 hover:text-primary-700 hover:bg-primary-50 px-3 py-2.5 rounded-lg w-full transition-colors text-sm font-medium">
+                                <BookOpen size={18} /> Contactos útiles
                             </button>
                         </div>
 

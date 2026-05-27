@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ClipboardList, PenTool, ShoppingBag, Ticket } from 'lucide-react';
+import { Home, ClipboardList, PenTool, ShoppingBag, Ticket, BookOpen } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 
 export default function StaffLayout() {
@@ -23,6 +23,13 @@ export default function StaffLayout() {
             <header className="bg-white/80 backdrop-blur-md p-4 border-b border-ink-150 flex justify-between items-center sticky top-0 z-50 shadow-sm">
                 <div className="font-bold text-ink-900">Portal de Staff</div>
                 <div className="flex items-center gap-3">
+                    <button 
+                        onClick={() => navigate('/staff/directory')}
+                        className="p-1.5 text-ink-600 hover:bg-ink-100 rounded-md transition-colors"
+                        title="Contactos útiles"
+                    >
+                        <BookOpen size={20} />
+                    </button>
                     <NotificationBell />
                     <button 
                         onClick={handleLogout} 
