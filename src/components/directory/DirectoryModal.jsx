@@ -47,7 +47,6 @@ export default function DirectoryModal({ contact = null, onClose }) {
     };
 
     return (
-    return (
         <Modal 
             isOpen={true} 
             onClose={onClose} 
