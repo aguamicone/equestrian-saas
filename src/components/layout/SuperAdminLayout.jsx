@@ -23,7 +23,7 @@ export default function SuperAdminLayout() {
                 <div className="flex items-center gap-8">
                     <span className="font-bold text-primary-600 text-xl flex items-center gap-2">
                         <ShieldAlert size={24} className="text-primary-500 animate-pulse-soft" />
-                        Equestrian SuperAdmin
+                        Horse Manager SuperAdmin
                     </span>
                     <div className="flex gap-5 text-sm">
                         <Link to="/admin" className={linkClass('/admin')}>

@@ -44,9 +44,8 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center p-4">
             <Card padding="normal" className="w-full max-w-md bg-white border-ink-200 shadow-xl rounded-3xl p-8 animate-in zoom-in duration-300">
                 <div className="text-center mb-8">
-                    <img src="/logo-app.jpg" alt="Logo" className="w-24 h-24 rounded-full border-4 border-primary-500 mx-auto mb-4 shadow-md object-cover" />
-                    <h2 className="text-3xl font-extrabold text-ink-900 leading-tight">Equestrian SaaS</h2>
-                    <p className="text-ink-500 font-medium mt-1">Acceso a la Plataforma</p>
+                    <img src="/logo.jpg" alt="Horse Manager Logo" className="h-40 mx-auto mb-2 object-contain" />
+                    <p className="text-ink-500 font-medium mt-2">Acceso a la Plataforma</p>
                 </div>
 
                 {error && <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-2.5 rounded-xl mb-4 text-sm font-medium">{error}</div>}
