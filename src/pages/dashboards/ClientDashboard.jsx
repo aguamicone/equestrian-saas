@@ -19,9 +19,13 @@ export default function ClientDashboard() {
     startOfWeek.setDate(now.getDate() - currentDay + 1);
     startOfWeek.setHours(0,0,0,0);
 
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
     const thisWeekLogs = myLogs.filter(l => {
         const d = new Date(l.timestamp || l.date);
-        return d >= startOfWeek && d <= now;
+        return d >= startOfWeek && d <= endOfWeek;
     });
 
     const weeklyTrainings = thisWeekLogs.filter(l => l.type === 'training_log').length;
