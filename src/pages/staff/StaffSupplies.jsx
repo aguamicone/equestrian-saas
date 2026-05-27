@@ -25,7 +25,7 @@ export default function StaffSupplies() {
         if (mode === 'use') {
             // Log Usage
             if (!selectedItemId) return;
-            const result = logStockUsage(selectedItemId, quantity, reason, currentUser.displayName);
+            const result = logStockUsage && currentUser ? logStockUsage(selectedItemId, quantity, reason, currentUser.displayName) : null;
 
             if (result && result.success) {
                 setLastTransaction(result);
@@ -37,9 +37,10 @@ export default function StaffSupplies() {
 
         } else {
             // Create Request
-            const item = selectedItemId ? inventory.find(i => i.id === selectedItemId)?.name : customItem;
+            const safeInventory = inventory || [];
+            const item = selectedItemId ? safeInventory.find(i => i.id === selectedItemId)?.name : customItem;
             createSupplyRequest({
-                clientId: currentUser.uid,
+                clientId: currentUser?.uid,
                 type: 'supply_order',
                 details: `Pedido de Insumo: ${item} x${quantity}`,
                 urgency,
@@ -126,7 +127,7 @@ export default function StaffSupplies() {
                                 required={mode === 'use'} // Not required for custom request
                             >
                                 <option value="">-- Seleccionar del Stock --</option>
-                                {inventory.map(item => (
+                                {(inventory || []).map(item => (
                                     <option key={item.id} value={item.id}>
                                         {item.name} ({item.stock} {item.unit})
                                     </option>

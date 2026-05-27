@@ -19,13 +19,13 @@ export default function MyHorses() {
     const [photo, setPhoto] = useState(''); // Text URL for now
 
     // Filter owned horses
-    const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
+    const myHorses = (horses || []).filter(h => h.ownerId === currentUser?.uid);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         addHorse({
             name, breed, age, color, photo,
-            ownerId: currentUser.uid,
+            ownerId: currentUser?.uid,
             documents: [],
             sanity: []
         });

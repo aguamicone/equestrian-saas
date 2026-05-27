@@ -7,17 +7,18 @@ export default function Events() {
     const { events, updateRow } = useData();
     const { currentUser } = useAuth();
 
-    const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const safeEvents = events || [];
+    const sortedEvents = [...safeEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const toggleAttendance = async (event) => {
         const attendees = event.attendees || [];
-        const isAttending = attendees.find(a => a.uid === currentUser.uid);
+        const isAttending = attendees.find(a => a.uid === currentUser?.uid);
         
         let newAttendees;
         if (isAttending) {
-            newAttendees = attendees.filter(a => a.uid !== currentUser.uid);
+            newAttendees = attendees.filter(a => a.uid !== currentUser?.uid);
         } else {
-            newAttendees = [...attendees, { uid: currentUser.uid, name: currentUser.displayName }];
+            newAttendees = [...attendees, { uid: currentUser?.uid, name: currentUser?.displayName }];
         }
         
         await updateRow('EVENTS', event.id, { attendees: newAttendees });
@@ -40,7 +41,7 @@ export default function Events() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {sortedEvents.map(event => {
-                        const isAttending = event.attendees?.find(a => a.uid === currentUser.uid);
+                        const isAttending = event.attendees?.find(a => a.uid === currentUser?.uid);
                         return (
                             <Card key={event.id} padding="normal" className="flex flex-col justify-between hover:border-ink-300 shadow-sm transition-all duration-200">
                                 <div>
@@ -48,7 +49,7 @@ export default function Events() {
                                     <div className="space-y-3 mb-6 text-sm">
                                         <div className="flex items-center gap-3 text-primary-700 bg-primary-50 border border-primary-100 p-3 rounded-xl font-medium">
                                             <Calendar size={18} className="text-primary-500" />
-                                            {new Date(event.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                            {!isNaN(new Date(event.date)) ? new Date(event.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Fecha inválida'}
                                         </div>
                                         <div className="flex items-start gap-3 text-ink-500">
                                             <AlignLeft size={18} className="text-primary-500 shrink-0 mt-0.5" />

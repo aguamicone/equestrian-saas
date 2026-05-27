@@ -47,7 +47,7 @@ export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveReq
       const reqRef = doc(db, 'REQUESTS', task.id);
       await updateDoc(reqRef, {
         status: 'in_progress',
-        assigneeId: currentUser.uid,
+        assigneeId: currentUser?.uid,
         takenAt: new Date().toISOString()
       });
     } catch (err) {

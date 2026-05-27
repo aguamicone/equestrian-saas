@@ -7,13 +7,13 @@ import { useState } from 'react';
 
 export default function ClientLayout() {
     const { logout, currentUser, currentTenant } = useAuth();
-    const { horses } = useData();
+    const { horses, notifications } = useData();
     const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
 
-    // Find owned horse for quick link
-    const myHorse = horses.find(h => h.ownerId === currentUser.uid);
+    // Encontrar un caballo del cliente para su avatar (opcional)
+    const myHorse = (horses || []).find(h => h.ownerId === currentUser?.uid);
 
     const handleLogout = async () => {
         await logout();

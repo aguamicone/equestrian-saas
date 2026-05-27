@@ -18,8 +18,8 @@ export default function ServiceRequest() {
     const { currentUser } = useAuth();
     const { horses, servicesCatalog, createServiceRequest, getActiveRequestsForClient, cancelServiceRequest } = useData();
 
-    const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
-    const activeRequests = getActiveRequestsForClient(currentUser.uid);
+    const myHorses = (horses || []).filter(h => h.ownerId === currentUser?.uid);
+    const activeRequests = (getActiveRequestsForClient && currentUser ? getActiveRequestsForClient(currentUser.uid) : []) || [];
 
     const [selectedHorseId, setSelectedHorseId] = useState(null);
     const [selectedService, setSelectedService] = useState(null);
@@ -56,7 +56,7 @@ export default function ServiceRequest() {
 
         try {
             const result = await createServiceRequest({
-                clientId: currentUser.uid,
+                clientId: currentUser?.uid,
                 horseId: selectedHorseId,
                 serviceName: selectedService.name,
                 serviceId: selectedService.id,
@@ -82,9 +82,10 @@ export default function ServiceRequest() {
         }
     };
 
-    const quickActions = servicesCatalog.filter(s => s.category === 'quick_action');
-    const upgrades = servicesCatalog.filter(s => s.category === 'upgrade');
-    const professionals = servicesCatalog.filter(s => s.category === 'professional');
+    const safeServices = servicesCatalog || [];
+    const quickActions = safeServices.filter(s => s.category === 'quick_action');
+    const upgrades = safeServices.filter(s => s.category === 'upgrade');
+    const professionals = safeServices.filter(s => s.category === 'professional');
 
     const ServiceGrid = ({ title, services }) => (
         <div className="mb-6">
@@ -225,7 +226,7 @@ export default function ServiceRequest() {
                     <h3 className="text-lg font-bold text-ink-800 mb-4">Mis Solicitudes Activas</h3>
                     <div className="space-y-3">
                         {activeRequests.map(req => {
-                            const horse = horses.find(h => h.id === req.horseId);
+                            const horse = (horses || []).find(h => h.id === req.horseId);
                             const canCancel = req.status === 'pending_staff' || req.status === 'pending_admin';
                             return (
                                 <Card key={req.id} className="p-4 flex items-center justify-between hover:border-primary-300 transition-colors">

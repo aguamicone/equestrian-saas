@@ -10,7 +10,7 @@ export default function ClientRoutinesView() {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     // El cliente solo ve sus caballos
-    const myHorses = horses.filter(h => h.ownerId === currentUser.uid);
+    const myHorses = horses.filter(h => h.ownerId === currentUser?.uid);
     const myHorseIds = myHorses.map(h => h.id);
 
     // Filtramos las rutinas que pertenezcan a los caballos del cliente

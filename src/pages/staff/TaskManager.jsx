@@ -20,15 +20,15 @@ export default function TaskManager() {
     const [showDeriveModal, setShowDeriveModal] = useState(false);
     
     // Horses location
-    const mySpaces = spaces.filter(s => s.staffId === currentUser.uid);
-    const myLoadedHorses = mySpaces.map(s => horses.find(h => h.id === s.horseId)).filter(Boolean);
+    const mySpaces = (spaces || []).filter(s => s.staffId === currentUser?.uid);
+    const myLoadedHorses = mySpaces.map(s => (horses || []).find(h => h.id === s.horseId)).filter(Boolean);
 
     // Initial Filter
     const myRequests = requests.filter(r => {
         // Solicitudes pending sin asignar: las ven todos los caballerizos
         const isPendingUnassigned = (r.status === 'pending_staff' || r.status === 'pending') && !r.assigneeId;
         // Solicitudes asignadas al caballerizo actual (en cualquier estado activo)
-        const isMineActive = r.assigneeId === currentUser.uid && (r.status === 'pending_staff' || r.status === 'pending' || r.status === 'in_progress');
+        const isMineActive = r.assigneeId === currentUser?.uid && (r.status === 'pending_staff' || r.status === 'pending' || r.status === 'in_progress');
         return isPendingUnassigned || isMineActive;
     });
 
