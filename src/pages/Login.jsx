@@ -44,7 +44,7 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center p-4">
             <Card padding="normal" className="w-full max-w-md bg-white border-ink-200 shadow-xl rounded-3xl p-8 animate-in zoom-in duration-300">
                 <div className="text-center mb-8">
-                    <img src="/logo.jpg" alt="Horse Manager Logo" className="h-40 mx-auto mb-2 object-contain" />
+                    <img src="/logo.png" alt="Horse Manager Logo" className="h-40 mx-auto mb-2 object-contain" />
                     <p className="text-ink-500 font-medium mt-2">Acceso a la Plataforma</p>
                 </div>
 
