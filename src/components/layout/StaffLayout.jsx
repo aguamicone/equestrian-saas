@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ClipboardList, PenTool, ShoppingBag, Ticket, BookOpen } from 'lucide-react';
+import { Home, ClipboardList, PenTool, ShoppingBag, Ticket, BookOpen, Activity, Calendar } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 
 export default function StaffLayout() {

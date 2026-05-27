@@ -185,7 +185,7 @@ export default function RegistrarCargoModal({ isOpen, onClose, horse }) {
             <input
               type="text"
               value={customDescription}
-              onChange={e => { setCustomDescription(e.target.value); setErrorMsg(null); }}
+              onChange={e => { setCustomDescription(e.target.value); setBackendError(null); }}
               className="input-field"
               placeholder="Ej: Visita veterinaria, herradura extra..."
               disabled={loading}
@@ -202,7 +202,7 @@ export default function RegistrarCargoModal({ isOpen, onClose, horse }) {
             <input
               type="number"
               value={amount}
-              onChange={e => { setAmount(e.target.value); setErrorMsg(null); }}
+              onChange={e => { setAmount(e.target.value); setBackendError(null); }}
               className="input-field"
               min="0"
               step="1000"
@@ -217,7 +217,7 @@ export default function RegistrarCargoModal({ isOpen, onClose, horse }) {
             <input
               type="date"
               value={date}
-              onChange={e => { setDate(e.target.value); setErrorMsg(null); }}
+              onChange={e => { setDate(e.target.value); setBackendError(null); }}
               max={new Date().toISOString().slice(0, 10)}
               className="input-field"
               disabled={loading}
