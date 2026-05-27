@@ -49,6 +49,8 @@ import TenantAdminLayout from './components/layout/TenantAdminLayout';
 import ClientLayout from './components/layout/ClientLayout';
 import StaffLayout from './components/layout/StaffLayout';
 
+import PublicTenantView from './pages/public/PublicTenantView';
+
 function App() {
     return (
         <NotificationProvider>
@@ -57,6 +59,7 @@ function App() {
                     <Router>
                         <Routes>
                             <Route path="/login" element={<Login />} />
+                            <Route path="/instalaciones" element={<PublicTenantView />} />
 
                             {/* Super Admin Routes */}
                             <Route path="/admin" element={

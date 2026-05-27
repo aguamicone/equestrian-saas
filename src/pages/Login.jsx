@@ -83,6 +83,16 @@ export default function Login() {
                         {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                     </button>
                 </form>
+
+                <div className="mt-8 text-center border-t border-ink-100 pt-6">
+                    <p className="text-xs text-ink-500 font-medium mb-3">¿Buscando pensión para tu caballo?</p>
+                    <button 
+                        onClick={() => navigate('/instalaciones')}
+                        className="text-primary-600 hover:text-primary-700 text-sm font-bold bg-primary-50 hover:bg-primary-100 px-6 py-2.5 rounded-full transition-colors inline-flex items-center gap-2"
+                    >
+                        Ver Caballerizas y Tarifas
+                    </button>
+                </div>
             </Card>
         </div>
     );

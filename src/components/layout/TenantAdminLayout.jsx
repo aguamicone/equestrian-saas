@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
 import {
   LogOut, LayoutDashboard, Ticket, Users, DollarSign, Settings,
   ClipboardList, Syringe, Activity, ShoppingBag, ChevronRight, Briefcase
@@ -8,8 +9,28 @@ import NotificationBell from '../common/NotificationBell';
 
 export default function TenantAdminLayout() {
   const { logout, currentUser, currentTenant, setTenant } = useAuth();
+  const { tenantRoles } = useData();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const userRole = currentUser?.role;
+
+  const hasAccess = (moduleId) => {
+    if (userRole === 'tenantAdmin') return true;
+    if (userRole === 'client') return false; 
+    
+    const customRole = tenantRoles.find(r => r.id === userRole);
+    if (customRole) {
+      return (customRole.permissions || []).includes(moduleId);
+    }
+    
+    if (userRole === 'staff') {
+       const staffRole = tenantRoles.find(r => r.id === 'staff');
+       if (staffRole) return (staffRole.permissions || []).includes(moduleId);
+       return ['horses', 'requests', 'inventory'].includes(moduleId);
+    }
+    return false;
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -25,33 +46,33 @@ export default function TenantAdminLayout() {
     {
       label: 'Gestión',
       items: [
-        { to: '/tenant-admin',           icon: LayoutDashboard, label: 'Dashboard', exact: true },
-        { to: '/tenant-admin/routines',  icon: ClipboardList,   label: 'Rutinas' },
-        { to: '/tenant-admin/spaces',    icon: Ticket,          label: 'Caballerizas' },
-        { to: '/tenant-admin/inventory', icon: ShoppingBag,     label: 'Inventario' },
-        { to: '/tenant-admin/horses',    icon: Users,           label: 'Caballos' },
-      ],
+        { to: '/tenant-admin',           icon: LayoutDashboard, label: 'Dashboard', exact: true, mod: 'dashboard' },
+        { to: '/tenant-admin/routines',  icon: ClipboardList,   label: 'Rutinas', mod: 'horses' },
+        { to: '/tenant-admin/spaces',    icon: Ticket,          label: 'Caballerizas', mod: 'horses' },
+        { to: '/tenant-admin/inventory', icon: ShoppingBag,     label: 'Inventario', mod: 'inventory' },
+        { to: '/tenant-admin/horses',    icon: Users,           label: 'Caballos', mod: 'horses' },
+      ].filter(i => hasAccess(i.mod)),
     },
     {
       label: 'Operación',
       items: [
-        { to: '/tenant-admin/finance',          icon: DollarSign, label: 'Finanzas' },
-        { to: '/tenant-admin/finance/debtors',  icon: ChevronRight, label: 'Deudores', sub: true },
-        { to: '/tenant-admin/equipment',        icon: Briefcase,  label: 'Inventario Equipos' },
-        { to: '/tenant-admin/events',           icon: Ticket,     label: 'Eventos' },
-        { to: '/tenant-admin/health',           icon: Syringe,    label: 'Sanidad' },
-        { to: '/tenant-admin/activity',         icon: Activity,   label: 'Actividad' },
-      ],
+        { to: '/tenant-admin/finance',          icon: DollarSign, label: 'Finanzas', mod: 'finances' },
+        { to: '/tenant-admin/finance/debtors',  icon: ChevronRight, label: 'Deudores', sub: true, mod: 'finances' },
+        { to: '/tenant-admin/equipment',        icon: Briefcase,  label: 'Inventario Equipos', mod: 'inventory' },
+        { to: '/tenant-admin/events',           icon: Ticket,     label: 'Eventos', mod: 'dashboard' },
+        { to: '/tenant-admin/health',           icon: Syringe,    label: 'Sanidad', mod: 'health' },
+        { to: '/tenant-admin/activity',         icon: Activity,   label: 'Actividad', mod: 'dashboard' },
+      ].filter(i => hasAccess(i.mod)),
     },
     {
       label: 'Configuración',
       items: [
-        { to: '/tenant-admin/users',    icon: Users,        label: 'Usuarios' },
-        { to: '/tenant-admin/staff',    icon: ClipboardList, label: 'Personal' },
-        { to: '/tenant-admin/settings', icon: Settings,     label: 'Configuración' },
-      ],
+        { to: '/tenant-admin/users',    icon: Users,        label: 'Usuarios', mod: 'users' },
+        { to: '/tenant-admin/staff',    icon: ClipboardList, label: 'Personal', mod: 'staff' },
+        { to: '/tenant-admin/settings', icon: Settings,     label: 'Configuración', mod: 'settings' },
+      ].filter(i => hasAccess(i.mod)),
     },
-  ];
+  ].filter(g => g.items.length > 0);
 
   return (
     <div className="min-h-screen flex">

@@ -38,6 +38,7 @@ export function DataProvider({ children }) {
     const [healthBooklets, setHealthBooklets] = useState([]);
     const [tenantSettings, setTenantSettings] = useState(null);
     const [equipmentItems, setEquipmentItems] = useState([]);
+    const [tenantRoles, setTenantRoles] = useState([]);
 
     // Initial Load & Real-time Subscription via onSnapshot
     useEffect(() => {
@@ -48,6 +49,7 @@ export function DataProvider({ children }) {
             setEvents([]); setHealthRecords([]); setHealthBooklets([]);
             setTenantSettings(null);
             setEquipmentItems([]);
+            setTenantRoles([]);
             setNotifications([]);
             return;
         }
@@ -63,6 +65,7 @@ export function DataProvider({ children }) {
             setInventory([]); setInventoryLogs([]); setServicesCatalog([]); setPayrollAdvances([]);
             setEvents([]); setHealthRecords([]); setHealthBooklets([]);
             setEquipmentItems([]);
+            setTenantRoles([]);
             setNotifications([]);
             return;
         }
@@ -110,6 +113,7 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
         unsubs.push(subscribe('USERS', setTenantUsers));
+        unsubs.push(subscribe('TENANT_ROLES', setTenantRoles));
         if (currentUser?.role !== 'client') {
             unsubs.push(subscribe('EQUIPMENT_ITEMS', setEquipmentItems));
         }
@@ -516,6 +520,62 @@ export function DataProvider({ children }) {
         // En un caso real tendrías un auth trigger o similar. Aquí grabamos info perfil.
         await setDoc(doc(db, 'USERS', userData.uid || userData.email), userData);
         notify('Usuario añadido a BDD', 'success');
+    };
+
+    const updateUser = async (uid, updates) => {
+        try {
+            await updateDoc(doc(db, 'USERS', uid), updates);
+            notify('Usuario actualizado', 'success');
+        } catch (e) {
+            console.error(e);
+            notify('Error al actualizar usuario', 'error');
+        }
+    };
+
+    const addRole = async (roleData) => {
+        try {
+            await addDoc(collection(db, 'TENANT_ROLES'), {
+                tenantId: currentTenant.id,
+                ...roleData
+            });
+            notify('Rol creado exitosamente', 'success');
+        } catch (e) {
+            console.error(e);
+            notify('Error al crear rol', 'error');
+        }
+    };
+
+    const updateRole = async (roleId, updates) => {
+        try {
+            await updateDoc(doc(db, 'TENANT_ROLES', roleId), updates);
+            notify('Rol actualizado', 'success');
+        } catch (e) {
+            console.error(e);
+            notify('Error al actualizar rol', 'error');
+        }
+    };
+
+    const setRole = async (roleId, roleData) => {
+        try {
+            await setDoc(doc(db, 'TENANT_ROLES', roleId), {
+                tenantId: currentTenant.id,
+                ...roleData
+            });
+            notify('Rol guardado exitosamente', 'success');
+        } catch (e) {
+            console.error(e);
+            notify('Error al configurar rol', 'error');
+        }
+    };
+
+    const deleteRole = async (roleId) => {
+        try {
+            await deleteDoc(doc(db, 'TENANT_ROLES', roleId));
+            notify('Rol eliminado', 'success');
+        } catch (e) {
+            console.error(e);
+            notify('Error al eliminar rol', 'error');
+        }
     };
 
     const addSpace = async (spaceData) => {
@@ -1753,13 +1813,13 @@ export function DataProvider({ children }) {
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, inventoryLogs, servicesCatalog, payrollAdvances,
-        notifications, events, healthRecords, healthBooklets, equipmentItems,
+        notifications, events, healthRecords, healthBooklets, equipmentItems, tenantRoles,
         
         createEquipmentItem, updateEquipmentItem, deleteEquipmentItem,
         getMyEquipmentItems, getEquipmentItemsByTenantAdmins,
         
         addHorse, assignHorseToSpace, updateSpaceStatus, updateBanner, addLog, addRequest, createServiceRequest, createSupplyRequest, cancelServiceRequest, getActiveRequestsForClient,
-        addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, addSpace,
+        addRoutine, addPricingPlan, addShift, deleteShift, addPayment, addTenant, addUser, updateUser, addRole, updateRole, setRole, deleteRole, addSpace,
         addInventoryItem, logStockUsage, updateStock, updateUserSalary, addAdvance, addEvent,
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
         getLogsForHorse, getFinanceForUser, getPendingChargesForUser, getPaidChargesForUser,

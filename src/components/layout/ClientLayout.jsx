@@ -27,7 +27,7 @@ export default function ClientLayout() {
     };
 
     return (
-        <div className="min-h-screen pb-20"> {/* pb-20 for bottom nav */}
+        <div className="min-h-screen pb-24"> {/* pb-24 for bottom nav */}
 
             {/* Mobile Header */}
             <header className="bg-white/70 backdrop-blur-md p-4 border-b border-ink-200 flex justify-between items-center sticky top-0 z-50">
@@ -105,7 +105,7 @@ export default function ClientLayout() {
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-ink-200 flex justify-around items-stretch z-50 safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.05)] h-[64px]">
                 <button 
                     onClick={() => navigate('/client')} 
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/client', true) ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/client', true) ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
                 >
                     <Home size={22} className={isActive('/client', true) ? 'fill-primary-50 text-primary-600' : ''} />
                     <span className="text-[10px] font-medium">Inicio</span>
@@ -113,7 +113,7 @@ export default function ClientLayout() {
 
                 <button 
                     onClick={() => navigate('/client/horses')} 
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/client/horses') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/client/horses') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
                 >
                     <Activity size={22} className={isActive('/client/horses') ? 'fill-primary-50 text-primary-600' : ''} />
                     <span className="text-[10px] font-medium">Mis Caballos</span>
@@ -121,7 +121,7 @@ export default function ClientLayout() {
 
                 <button 
                     onClick={() => navigate('/client/request')} 
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/client/request') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/client/request') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}
                 >
                     <PlusCircle size={22} className={isActive('/client/request') ? 'fill-primary-50 text-primary-600' : ''} />
                     <span className="text-[10px] font-medium">Solicitar</span>

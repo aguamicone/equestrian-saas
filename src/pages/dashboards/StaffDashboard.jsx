@@ -52,8 +52,8 @@ export default function StaffDashboard() {
                         key={task.id}
                         onClick={() => toggleTask(task.id)}
                         padding="normal"
-                        className={`cursor-pointer transition-all duration-200 group border-ink-200 shadow-sm ${task.completed
-                                ? 'opacity-60 bg-ink-50/50 border-ink-150 hover:bg-ink-50'
+                        className={`cursor-pointer transition-all duration-200 active:scale-[0.98] group border-ink-200 shadow-sm ${task.completed
+                                ? 'opacity-70 bg-ink-50/50 border-ink-150 hover:bg-ink-50'
                                 : 'hover:border-primary-400 hover:shadow-md hover:-translate-y-0.5 bg-white'
                             }`}
                     >
@@ -66,7 +66,7 @@ export default function StaffDashboard() {
                                     {task.text}
                                 </p>
                                 <div className="flex items-center gap-3">
-                                    <span className={`text-[11px] font-bold flex items-center gap-1 uppercase tracking-wider ${task.completed ? 'text-ink-400' : 'text-ink-500'}`}>
+                                    <span className={`text-[11px] font-bold flex items-center gap-1 uppercase tracking-wider ${task.completed ? 'text-ink-500' : 'text-ink-500'}`}>
                                         <Clock size={12}/> {task.time}
                                     </span>
                                     {task.loc && (

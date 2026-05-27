@@ -100,7 +100,7 @@ service cloud.firestore {
     // Create/Update: tenantAdmin o staff (staff puede cambiar estado del box)
     // Delete: solo tenantAdmin
     match /SPACES/{spaceId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow read: if true; // Public for Landing Page
       allow create: if isSuperAdmin() || (
         isCreatingForMyTenant() &&
         (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
@@ -323,7 +323,7 @@ service cloud.firestore {
     // Read: superAdmin o miembros del tenant (clientes necesitan ver precios)
     // Create/Update/Delete: solo tenantAdmin
     match /PRICING_PLANS/{planId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow read: if true; // Public for Landing Page
       allow create: if isSuperAdmin() || (
         isCreatingForMyTenant() &&
         getUserData().role == 'tenantAdmin'
@@ -449,6 +449,25 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || (
         isDeletingMyTenantDoc() &&
         (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+      );
+    }
+
+    // ----- TENANT_ROLES -----
+    // Read: superAdmin o miembros del tenant (necesario para UI condicional)
+    // Create/Update/Delete: solo tenantAdmin
+    match /TENANT_ROLES/{roleId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() &&
+        getUserData().role == 'tenantAdmin'
       );
     }
 

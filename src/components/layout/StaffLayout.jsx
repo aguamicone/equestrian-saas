@@ -18,7 +18,7 @@ export default function StaffLayout() {
         : 'text-ink-400 hover:text-ink-600';
 
     return (
-        <div className="min-h-screen pb-20">
+        <div className="min-h-screen pb-24">
             {/* Mobile Header - Cielo y Campo light style */}
             <header className="bg-white/80 backdrop-blur-md p-4 border-b border-ink-150 flex justify-between items-center sticky top-0 z-50 shadow-sm">
                 <div className="font-bold text-ink-900">Portal de Staff</div>
@@ -38,26 +38,26 @@ export default function StaffLayout() {
             </main>
 
             {/* Bottom Navigation - Light styled bar */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-ink-150 flex justify-around items-start pt-3 pb-4 z-40 safe-area-bottom shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
-                <button onClick={() => navigate('/staff')} className={`flex flex-col items-center gap-1 transition-colors ${isActive('/staff')}`}>
+            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-ink-200 flex justify-around items-stretch z-50 safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.05)] h-[64px]">
+                <button onClick={() => navigate('/staff')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff')}`}>
                     <Home size={22} />
-                    <span className="text-[10px] tracking-wide mt-0.5">Inicio</span>
+                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff' ? 'opacity-100' : 'opacity-70'}`}>Inicio</span>
                 </button>
-                <button onClick={() => navigate('/staff/tasks')} className={`flex flex-col items-center gap-1 transition-colors ${isActive('/staff/tasks')}`}>
+                <button onClick={() => navigate('/staff/tasks')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/tasks')}`}>
                     <ClipboardList size={22} />
-                    <span className="text-[10px] tracking-wide mt-0.5">Tareas</span>
+                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/tasks' ? 'opacity-100' : 'opacity-70'}`}>Tareas</span>
                 </button>
-                <button onClick={() => navigate('/staff/log')} className={`flex flex-col items-center gap-1 transition-colors ${isActive('/staff/log')}`}>
+                <button onClick={() => navigate('/staff/log')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/log')}`}>
                     <PenTool size={22} />
-                    <span className="text-[10px] tracking-wide mt-0.5">Registro</span>
+                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/log' ? 'opacity-100' : 'opacity-70'}`}>Registro</span>
                 </button>
-                <button onClick={() => navigate('/staff/supplies')} className={`flex flex-col items-center gap-1 transition-colors ${isActive('/staff/supplies')}`}>
+                <button onClick={() => navigate('/staff/supplies')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/supplies')}`}>
                     <ShoppingBag size={22} />
-                    <span className="text-[10px] tracking-wide mt-0.5">Insumos</span>
+                    <span className={`text-[10px] tracking-wide font-medium flex gap-0.5 flex-col xs:flex-row items-center ${location.pathname === '/staff/supplies' ? 'opacity-100' : 'opacity-70'}`}><span>Insumos</span></span>
                 </button>
-                <button onClick={() => navigate('/staff/events')} className={`flex flex-col items-center gap-1 transition-colors ${isActive('/staff/events')}`}>
+                <button onClick={() => navigate('/staff/events')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/events')}`}>
                     <Ticket size={22} />
-                    <span className="text-[10px] tracking-wide mt-0.5">Eventos</span>
+                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/events' ? 'opacity-100' : 'opacity-70'}`}>Eventos</span>
                 </button>
             </nav>
         </div>

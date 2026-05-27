@@ -104,11 +104,11 @@ export default function ClientDashboard() {
                         <p className="text-ink-500 font-medium">No tienes caballos asignados a tu cuenta.</p>
                     </div>
                 ) : (
-                    <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
+                    <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth snap-x snap-mandatory">
                         {myHorses.map(horse => {
                             const loc = horse.location || 'box';
                             return (
-                                <Link key={horse.id} to={`/client/horses/${horse.id}`} className="shrink-0 w-[240px] group">
+                                <Link key={horse.id} to={`/client/horses/${horse.id}`} className="shrink-0 w-[240px] group snap-center">
                                     <div className="bg-white rounded-2xl border border-ink-200 p-3 h-full shadow-card relative overflow-hidden hover:border-primary-300 transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
                                         
                                         {/* Colored Glow based on location */}
@@ -140,21 +140,7 @@ export default function ClientDashboard() {
                 )}
             </div>
 
-            {/* Quick Actions or Info block replacing the old large container */}
-            <div className="bg-gradient-to-r from-primary-50 to-sky-50 rounded-2xl border border-primary-100 p-5 flex items-center justify-between shadow-card">
-                <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-                        <Calendar size={20}/>
-                    </div>
-                    <div>
-                        <h4 className="text-ink-800 font-bold text-sm">Reserva de Instalaciones</h4>
-                        <p className="text-xs text-ink-500 mt-0.5">Asegurá tu lugar en la pista o caminador.</p>
-                    </div>
-                </div>
-                <Link to="/client/reserve" className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center hover:bg-primary-600 transition-colors">
-                    <ChevronRight size={16}/>
-                </Link>
-            </div>
+
 
         </div>
     );
