@@ -3,10 +3,12 @@ import { useData } from '../../context/DataContext';
 import { ChevronLeft, MapPin, Activity, FileText, Syringe, Camera, X, Swords, Medal, Edit3, Clock, Plus, Stethoscope, Heart } from 'lucide-react';
 import { useState } from 'react';
 import { Card, Badge, Tabs, EmptyState } from '../../components/ui';
+import { storage } from '../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function HorseDetails() {
     const { id } = useParams();
-    const { horses, logs, requests, addLog } = useData();
+    const { horses, logs, requests, addLog, updateRow } = useData();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('activity');
 
@@ -58,6 +60,7 @@ export default function HorseDetails() {
     // Comment State
     const [newComment, setNewComment] = useState('');
     const [newPhoto, setNewPhoto] = useState(null);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
     // Document Modal State
     const [selectedDoc, setSelectedDoc] = useState(null);
@@ -65,6 +68,23 @@ export default function HorseDetails() {
     const horse = horses.find(h => h.id === id);
 
     if (!horse) return <div className="p-8 text-white">Caballo no encontrado.</div>;
+
+    const handleProfilePhotoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            setIsUploadingPhoto(true);
+            const fileRef = ref(storage, `horses/${id}/profile_${Date.now()}`);
+            await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(fileRef);
+            await updateRow('horses', id, { photo: url });
+        } catch (err) {
+            console.error("Error al subir foto:", err);
+            alert("No se pudo subir la foto. Asegurate de tener conexión y el plan Blaze activado.");
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
 
     const handleAddComment = () => {
         let finalDetails = newComment || '';
@@ -167,6 +187,23 @@ export default function HorseDetails() {
                     ) : (
                         <div className="flex items-center justify-center h-full text-4xl">🐴</div>
                     )}
+                    
+                    {/* Upload Overlay */}
+                    <label className="absolute inset-0 z-20 cursor-pointer group/upload">
+                        <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} disabled={isUploadingPhoto} />
+                        <div className="absolute inset-0 bg-ink-900/0 group-hover/upload:bg-ink-900/30 transition-all flex items-center justify-center">
+                            <div className="bg-white/95 backdrop-blur-md text-ink-800 px-4 py-2.5 rounded-full font-bold text-sm shadow-xl opacity-0 group-hover/upload:opacity-100 transition-all flex items-center gap-2 transform translate-y-4 group-hover/upload:translate-y-0">
+                                {isUploadingPhoto ? (
+                                    <span className="animate-pulse">Subiendo foto...</span>
+                                ) : (
+                                    <>
+                                        <Camera size={18} className="text-primary-600"/>
+                                        {horse.photo ? 'Cambiar Foto' : 'Subir Foto'}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </label>
                     
                     {/* Realtime Badge */}
                     <div className="absolute top-4 right-4">
