@@ -47,18 +47,14 @@ export default function DirectoryModal({ contact = null, onClose }) {
     };
 
     return (
-        <Modal isOpen={true} onClose={onClose} size="md">
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-display font-medium text-ink-900">
-                        {isEdit ? 'Editar Contacto' : 'Nuevo Contacto'}
-                    </h2>
-                    <button onClick={onClose} className="p-2 text-ink-500 hover:bg-ink-50 rounded-lg">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
+    return (
+        <Modal 
+            isOpen={true} 
+            onClose={onClose} 
+            size="md"
+            title={isEdit ? 'Editar Contacto' : 'Nuevo Contacto'}
+        >
+            <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-ink-700 mb-1">Categoría</label>
                         <div className="grid grid-cols-3 gap-2">
@@ -91,7 +87,7 @@ export default function DirectoryModal({ contact = null, onClose }) {
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Ej: Dr. Juan Pérez"
-                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm text-ink-900 bg-white placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
                             />
                         </div>
                     </div>
@@ -107,7 +103,7 @@ export default function DirectoryModal({ contact = null, onClose }) {
                                 value={formData.specialty}
                                 onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
                                 placeholder="Ej: Odontología equina, Herrado correctivo"
-                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm text-ink-900 bg-white placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
                             />
                         </div>
                     </div>
@@ -125,7 +121,7 @@ export default function DirectoryModal({ contact = null, onClose }) {
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     placeholder="+54 9 11..."
-                                    className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+                                    className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm text-ink-900 bg-white placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
                                 />
                             </div>
                         </div>
@@ -141,7 +137,7 @@ export default function DirectoryModal({ contact = null, onClose }) {
                                     value={formData.location}
                                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                                     placeholder="Ej: Pilar, GBA Norte"
-                                    className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+                                    className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm text-ink-900 bg-white placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
                                 />
                             </div>
                         </div>
@@ -158,12 +154,12 @@ export default function DirectoryModal({ contact = null, onClose }) {
                                 value={formData.notes}
                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 placeholder="Ej: Atiende emergencias 24hs..."
-                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow resize-none"
+                                className="block w-full pl-9 pr-3 py-2 border border-ink-200 rounded-lg text-sm text-ink-900 bg-white placeholder-ink-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow resize-none"
                             />
                         </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3 border-t border-ink-100">
+                    <div className="mt-6 pt-4 flex justify-end gap-3 border-t border-ink-100">
                         <button
                             type="button"
                             onClick={onClose}
@@ -181,7 +177,6 @@ export default function DirectoryModal({ contact = null, onClose }) {
                         </button>
                     </div>
                 </form>
-            </div>
         </Modal>
     );
 }
