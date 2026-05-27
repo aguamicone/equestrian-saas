@@ -40,6 +40,7 @@ export function DataProvider({ children }) {
     const [tenantSettings, setTenantSettings] = useState(null);
     const [equipmentItems, setEquipmentItems] = useState([]);
     const [tenantRoles, setTenantRoles] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Initial Load & Real-time Subscription via onSnapshot
     useEffect(() => {
