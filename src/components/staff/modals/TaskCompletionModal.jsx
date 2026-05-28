@@ -21,7 +21,7 @@ import { FileText, Camera, User, Clipboard, Calendar, Clock, Award } from 'lucid
  * Compresion: resize a max 1024px + jpeg quality 0.7 (sin manejo EXIF).
  */
 export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveRequest }) {
-  const { addLog, updateRow, sendNotification, horses, tenantUsers } = useData();
+  const { addLog, updateRow, sendNotification, horses, tenantUsers, equipmentItems } = useData();
   const { currentUser } = useAuth();
 
   const [observation, setObservation] = useState('');
@@ -164,6 +164,7 @@ export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveReq
 
   const horse = horses.find(h => h.id === task?.horseId);
   const client = tenantUsers.find(u => u.uid === task?.clientId);
+  const horseEquipment = horse ? (equipmentItems || []).filter(item => item.horseId === horse.id) : [];
 
   if (!task) return null;
 
@@ -231,6 +232,19 @@ export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveReq
                 </div>
               </div>
             </div>
+
+            {horseEquipment.length > 0 && (
+              <div className="pt-2 border-t border-sky-100">
+                <h4 className="text-xs kicker text-ink-500 mb-2">Set de Equipo del Caballo</h4>
+                <div className="flex flex-wrap gap-2">
+                  {horseEquipment.map(eq => (
+                    <span key={eq.id} className="text-xs bg-white text-ink-700 px-2 py-1 rounded border border-sky-200 shadow-sm">
+                      <strong className="text-ink-900">{eq.name}</strong> ({eq.type})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 pt-2 border-t border-sky-100">
               <div className="flex items-center gap-3">
@@ -305,6 +319,19 @@ export default function TaskCompletionModal({ isOpen, onClose, task, onDeriveReq
         {error && (
           <div className="bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg px-3 py-2">
             {error}
+          </div>
+        )}
+
+        {horseEquipment.length > 0 && (
+          <div className="pt-2 border-t border-sky-100">
+            <h4 className="text-xs kicker text-ink-500 mb-2">Set de Equipo del Caballo</h4>
+            <div className="flex flex-wrap gap-2">
+              {horseEquipment.map(eq => (
+                <span key={eq.id} className="text-xs bg-white text-ink-700 px-2 py-1 rounded border border-sky-200 shadow-sm">
+                  <strong className="text-ink-900">{eq.name}</strong> ({eq.type})
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

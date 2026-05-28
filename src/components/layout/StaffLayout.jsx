@@ -1,17 +1,30 @@
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ClipboardList, PenTool, ShoppingBag, Ticket, BookOpen, Activity, Calendar } from 'lucide-react';
+import { Home, ClipboardList, PenTool, ShoppingBag, Ticket, BookOpen, Activity, Calendar, Menu, X, LogOut } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 
 export default function StaffLayout() {
     const { logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef(null);
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const isActive = (path) => location.pathname === path 
         ? 'text-primary-600 font-semibold' 
@@ -23,20 +36,45 @@ export default function StaffLayout() {
             <header className="bg-white/80 backdrop-blur-md p-4 border-b border-ink-150 flex justify-between items-center sticky top-0 z-50 shadow-sm">
                 <div className="font-bold text-ink-900">Portal de Staff</div>
                 <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => navigate('/staff/directory')}
-                        className="p-1.5 text-ink-600 hover:bg-ink-100 rounded-md transition-colors"
-                        title="Contactos útiles"
-                    >
-                        <BookOpen size={20} />
-                    </button>
                     <NotificationBell />
-                    <button 
-                        onClick={handleLogout} 
-                        className="text-xs text-danger-600 border border-danger-200 px-2.5 py-1 rounded-lg hover:bg-danger-50 transition-all font-semibold"
-                    >
-                        Salir
-                    </button>
+                    
+                    {/* Hamburger Menu Container */}
+                    <div className="relative" ref={menuRef}>
+                        <button 
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="p-1.5 text-ink-600 hover:bg-ink-100 rounded-md transition-colors"
+                        >
+                            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isMenuOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-ink-150 py-2 animate-in slide-in-from-top-2 z-50">
+                                <button 
+                                    onClick={() => { navigate('/staff/events'); setIsMenuOpen(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 transition-colors"
+                                >
+                                    <Ticket size={18} className="text-primary-600" />
+                                    Eventos
+                                </button>
+                                <button 
+                                    onClick={() => { navigate('/staff/directory'); setIsMenuOpen(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50 transition-colors"
+                                >
+                                    <BookOpen size={18} className="text-primary-600" />
+                                    Contactos útiles
+                                </button>
+                                <div className="h-px bg-ink-150 my-1 mx-3" />
+                                <button 
+                                    onClick={handleLogout}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger-600 hover:bg-danger-50 transition-colors"
+                                >
+                                    <LogOut size={18} />
+                                    Salir
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -78,9 +116,9 @@ export default function StaffLayout() {
                     <ShoppingBag size={22} />
                     <span className={`text-[10px] tracking-wide font-medium flex gap-0.5 flex-col xs:flex-row items-center ${location.pathname === '/staff/supplies' ? 'opacity-100' : 'opacity-70'}`}><span>Insumos</span></span>
                 </button>
-                <button onClick={() => navigate('/staff/events')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/events')}`}>
-                    <Ticket size={22} />
-                    <span className={`text-[10px] tracking-wide font-medium ${location.pathname === '/staff/events' ? 'opacity-100' : 'opacity-70'}`}>Eventos</span>
+                <button onClick={() => navigate('/staff/calendar')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive('/staff/calendar') ? 'text-primary-600' : 'text-ink-400 hover:text-primary-600'}`}>
+                    <Calendar size={22} className={isActive('/staff/calendar') ? 'fill-primary-50 text-primary-600' : ''} />
+                    <span className="text-[10px] tracking-wide font-medium opacity-70">Calendario</span>
                 </button>
             </nav>
         </div>

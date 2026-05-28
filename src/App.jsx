@@ -44,7 +44,11 @@ import StaffDashboard from './pages/dashboards/StaffDashboard';
 import TaskManager from './pages/staff/TaskManager';
 import QuickLog from './pages/staff/QuickLog';
 import StaffSupplies from './pages/staff/StaffSupplies';
+import StaffCalendar from './pages/staff/StaffCalendar';
 import DirectoryView from './pages/common/DirectoryView';
+
+// Test/Mockup
+import CourseDesignerMockup from './pages/test/CourseDesignerMockup';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import SuperAdminLayout from './components/layout/SuperAdminLayout';
@@ -125,11 +129,17 @@ function App() {
                             }>
                                 <Route index element={<StaffDashboard />} />
                                 <Route path="tasks" element={<TaskManager />} />
+                                <Route path="horses" element={<TaskManager />} />
+                                <Route path="routines" element={<TaskManager />} />
                                 <Route path="log" element={<QuickLog />} />
                                 <Route path="supplies" element={<StaffSupplies />} />
                                 <Route path="events" element={<Events />} />
+                                <Route path="calendar" element={<StaffCalendar />} />
                                 <Route path="directory" element={<DirectoryView />} />
                             </Route>
+
+                            {/* Isolated Mockups */}
+                            <Route path="/sandbox-pista" element={<CourseDesignerMockup />} />
 
                             <Route path="*" element={<Navigate to="/login" replace />} />
                         </Routes>

@@ -30,7 +30,7 @@ const EQUIPMENT_TYPES = [
 ];
 
 export default function TenantEquipment() {
-    const { equipmentItems, tenantUsers, getEquipmentItemsByTenantAdmins, deleteEquipmentItem } = useData();
+    const { equipmentItems, tenantUsers, getEquipmentItemsByTenantAdmins, deleteEquipmentItem, horses } = useData();
     const { currentUser } = useAuth();
     const [activeTab, setActiveTab] = useState('todos');
 
@@ -121,13 +121,14 @@ export default function TenantEquipment() {
             />
 
             {/* Tab Contents */}
-            {activeTab === 'todos' && <TabTodos tenantUsers={tenantUsers} equipmentItems={equipmentItems} />}
+            {activeTab === 'todos' && <TabTodos tenantUsers={tenantUsers} equipmentItems={equipmentItems} horses={horses} />}
             {activeTab === 'propios' && (
                 <TabPropios 
                     items={getEquipmentItemsByTenantAdmins()} 
                     onAdd={handleAdd} 
                     onEdit={handleEdit} 
                     onDelete={setItemToDelete} 
+                    horses={horses}
                 />
             )}
 
@@ -154,7 +155,7 @@ export default function TenantEquipment() {
 // ==========================================
 // PESTAÑA 1: Todos los Equipos
 // ==========================================
-function TabTodos({ tenantUsers, equipmentItems }) {
+function TabTodos({ tenantUsers, equipmentItems, horses }) {
     // TR-43 (won't fix - decision de producto 24-25 may 2026):
     // Estos estados de filtros viven dentro de TabTodos a proposito.
     // React los resetea cuando el usuario cambia a la sub-tab "Items Caballeriza" y vuelve.
@@ -292,6 +293,11 @@ function TabTodos({ tenantUsers, equipmentItems }) {
                                                     <Badge variant={usageToVariant(item.usage)}>
                                                         {item.usage}
                                                     </Badge>
+                                                    {item.horseId && (
+                                                        <span className="text-[10px] text-primary-700 font-bold bg-primary-50 px-2 py-0.5 rounded border border-primary-100 mt-1">
+                                                            🐴 {(horses || []).find(h => h.id === item.horseId)?.name || 'Desconocido'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="p-4">
@@ -314,7 +320,7 @@ function TabTodos({ tenantUsers, equipmentItems }) {
 // ==========================================
 // PESTAÑA 2: Ítems Caballeriza
 // ==========================================
-function TabPropios({ items, onAdd, onEdit, onDelete }) {
+function TabPropios({ items, onAdd, onEdit, onDelete, horses }) {
     const conditionToVariant = (condition) => {
         switch (condition) {
             case 'nueva': return 'success';
@@ -380,6 +386,12 @@ function TabPropios({ items, onAdd, onEdit, onDelete }) {
                                         </button>
                                     </div>
                                 </div>
+
+                                {item.horseId && (
+                                    <div className="bg-primary-50 text-primary-700 text-xs font-bold px-2 py-1 rounded-md mb-3 flex items-center gap-1 w-max border border-primary-100">
+                                        🐴 Para: {(horses || []).find(h => h.id === item.horseId)?.name || 'Caballo Desconocido'}
+                                    </div>
+                                )}
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Badge variant={conditionToVariant(item.condition)}>

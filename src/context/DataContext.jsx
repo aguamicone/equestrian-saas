@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc, deleteField, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { createUserWithEmailAndPassword, signOut, deleteUser } from 'firebase/auth';
@@ -8,6 +8,25 @@ import { secondaryAuth } from '../services/secondaryApp';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MONTHLY_DUE_DAY } from '../services/config';
+
+const getSafeDate = (val) => {
+    if (!val) return new Date(0);
+    if (val.toDate && typeof val.toDate === 'function') {
+        try {
+            return val.toDate();
+        } catch (e) {
+            // ignore
+        }
+    }
+    if (val.seconds) return new Date(val.seconds * 1000);
+    if (val instanceof Date) return val;
+    if (typeof val === 'string' || typeof val === 'number') {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
+    }
+    return new Date(0);
+};
+
 
 const DataContext = createContext();
 
@@ -102,15 +121,15 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('HORSES', setHorses, [], () => { hLoaded = true; checkLoad(); }));
         
         if (currentUser?.role === 'client') {
-            unsubs.push(subscribe('FINANCES', setFinances, [where('clientId', '==', currentUser.uid)]));
+            unsubs.push(subscribe('FINANCES', setFinances, [where('clientId', '==', currentUser.uid), orderBy('date', 'desc'), limit(300)]));
         } else {
-            unsubs.push(subscribe('FINANCES', setFinances));
+            unsubs.push(subscribe('FINANCES', setFinances, [orderBy('date', 'desc'), limit(300)]));
         }
-        unsubs.push(subscribe('LOGS', setLogs));
+        unsubs.push(subscribe('LOGS', setLogs, [orderBy('timestamp', 'desc'), limit(200)]));
         if (currentUser?.role === 'client') {
-            unsubs.push(subscribe('REQUESTS', setRequests, [where('clientId', '==', currentUser.uid)]));
+            unsubs.push(subscribe('REQUESTS', setRequests, [where('clientId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(100)]));
         } else {
-            unsubs.push(subscribe('REQUESTS', setRequests));
+            unsubs.push(subscribe('REQUESTS', setRequests, [orderBy('createdAt', 'desc'), limit(100)]));
         }
         unsubs.push(subscribe('ROUTINES', setRoutines));
         unsubs.push(subscribe('PRICING_PLANS', setPricingPlans));
@@ -125,8 +144,8 @@ export function DataProvider({ children }) {
             unsubs.push(subscribe('PAYROLL_ADVANCES', setPayrollAdvances));
         }
 
-        unsubs.push(subscribe('EVENTS', setEvents));
-        unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords));
+        unsubs.push(subscribe('EVENTS', setEvents, [orderBy('date', 'desc'), limit(200)]));
+        unsubs.push(subscribe('HEALTH_RECORDS', setHealthRecords, [orderBy('date', 'desc'), limit(500)]));
         unsubs.push(subscribe('HORSE_HEALTH_BOOKLETS', setHealthBooklets));
         unsubs.push(subscribe('DIRECTORY', setDirectoryContacts));
         unsubs.push(subscribe('USERS', setTenantUsers));
@@ -154,19 +173,20 @@ export function DataProvider({ children }) {
             isMounted = false;
             unsubs.forEach(unsub => unsub());
         };
-    }, [currentTenant?.id, currentUser?.uid, currentUser?.role]);
+    }, [currentTenant, currentUser]);
 
     // Suscripción específica de EQUIPMENT_ITEMS para clientes
     useEffect(() => {
         if (!currentTenant?.id || !currentUser?.uid || currentUser.role !== 'client') return;
         
-        const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid);
-        const allowedUids = [currentUser.uid, ...adminUids].slice(0, 10);
+        // Evitamos recalcular si la lista de admins no cambió radicalmente.
+        // Solo tomamos los IDs.
+        const adminUids = tenantUsers.filter(u => u.role === 'tenantAdmin').map(u => u.uid).sort().join(',');
         
         const q = query(
             collection(db, 'EQUIPMENT_ITEMS'),
             where("tenantId", "==", currentTenant.id),
-            where("ownerId", "in", allowedUids)
+            where("ownerId", "in", [currentUser.uid, ...(adminUids ? adminUids.split(',') : [])].slice(0, 10))
         );
         
         const unsub = onSnapshot(q, snap => {
@@ -174,7 +194,7 @@ export function DataProvider({ children }) {
         });
         
         return () => unsub();
-    }, [currentTenant?.id, currentUser?.uid, currentUser?.role, tenantUsers]);
+    }, [currentTenant?.id, currentUser?.uid, currentUser?.role, tenantUsers.length]);
 
     // --- Actions (Firebase Writes) ---
 
@@ -188,6 +208,54 @@ export function DataProvider({ children }) {
             });
             notify('Caballo registrado exitosamente', 'success');
         } catch(e) { console.error(e); notify("Error", "error"); }
+    };
+
+    const updateHorseDiet = async (horseId, dietData, horseName) => {
+        try {
+            const batch = writeBatch(db);
+            const horseRef = doc(db, 'HORSES', horseId);
+            batch.update(horseRef, { diet: dietData });
+
+            const existingRoutines = routines.filter(r => r.horseId === horseId && r.category === 'feeding');
+
+            if (dietData.type === 'especifica') {
+                const instructions = `${dietData.feedType} - ${dietData.quantity} (${dietData.frequency}). ${dietData.instructions || ''}`;
+                if (existingRoutines.length > 0) {
+                    const routineRef = doc(db, 'ROUTINES', existingRoutines[0].id);
+                    batch.update(routineRef, {
+                        name: `Alimentación: ${horseName}`,
+                        instructions: instructions,
+                        time: 'Horarios indicados',
+                        frequency: 'diaria',
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    const newRoutineRef = doc(collection(db, 'ROUTINES'));
+                    batch.set(newRoutineRef, {
+                        tenantId: currentTenant.id,
+                        horseId: horseId,
+                        category: 'feeding',
+                        name: `Alimentación: ${horseName}`,
+                        instructions: instructions,
+                        time: 'Horarios indicados',
+                        frequency: 'diaria',
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            } else {
+                existingRoutines.forEach(r => {
+                    batch.delete(doc(db, 'ROUTINES', r.id));
+                });
+            }
+
+            await batch.commit();
+            notify('Dieta actualizada exitosamente', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error updating diet:', error);
+            notify('Error al actualizar la dieta', 'error');
+            return { success: false, error };
+        }
     };
 
     const assignHorseToSpace = async (spaceId, horseId) => {
@@ -687,13 +755,13 @@ export function DataProvider({ children }) {
     };
 
     const getLogsForHorse = (horseId) => {
-        return logs.filter(l => l.horseId === horseId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return logs.filter(l => l.horseId === horseId).sort((a, b) => getSafeDate(b.timestamp).getTime() - getSafeDate(a.timestamp).getTime());
     };
 
     const getFinanceForUser = (userId) => {
         return finances
             .filter(f => f.clientId === userId)
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
+            .sort((a, b) => getSafeDate(b.date).getTime() - getSafeDate(a.date).getTime());
     };
 
     const getPendingChargesForUser = (userId) => {
@@ -703,14 +771,14 @@ export function DataProvider({ children }) {
                 if (!a.dueDate && !b.dueDate) return 0;
                 if (!a.dueDate) return 1;
                 if (!b.dueDate) return -1;
-                return new Date(a.dueDate) - new Date(b.dueDate);
+                return getSafeDate(a.dueDate).getTime() - getSafeDate(b.dueDate).getTime();
             });
     };
 
     const getPaidChargesForUser = (userId) => {
         return finances
             .filter(f => f.clientId === userId && f.status === 'paid')
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
+            .sort((a, b) => getSafeDate(b.date).getTime() - getSafeDate(a.date).getTime());
     };
 
     const sendNotification = async (recipientId, message, type = 'info') => {
@@ -1710,7 +1778,7 @@ export function DataProvider({ children }) {
     };
 
     const getHealthRecordsByHorse = (horseId) => {
-        return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return healthRecords.filter(r => r.horseId === horseId).sort((a,b) => getSafeDate(b.date).getTime() - getSafeDate(a.date).getTime());
     };
 
     const getHealthBookletByHorse = (horseId) => {
@@ -1728,7 +1796,7 @@ export function DataProvider({ children }) {
 
         for (const record of records) {
             if (!record.nextDueDate) continue;
-            const dueDate = new Date(record.nextDueDate);
+            const dueDate = getSafeDate(record.nextDueDate);
             if (dueDate < now) {
                 return 'vencido';
             }
@@ -1834,7 +1902,7 @@ export function DataProvider({ children }) {
         assignSpaceToStaff, updateHorseLocation, sendNotification, markAsRead, updateRow, deleteRow,
         getLogsForHorse, getFinanceForUser, getPendingChargesForUser, getPaidChargesForUser,
         
-        releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace,
+        releaseSpace, archiveHorse, updateHorseStatus, moveHorseToSpace, createClientWithHorse, createClientWithHorses, assignExistingHorseToSpace, updateHorseDiet,
         assignPlanToHorse, removePlanFromHorse, createOneTimeCharge, generateMonthlyCharges, deleteClientCascading,
         settlePendingCharge, settleMultiplePendingCharges, editPendingCharge, deletePendingCharge,
         

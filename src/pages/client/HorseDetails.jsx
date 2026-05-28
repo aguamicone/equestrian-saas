@@ -231,7 +231,8 @@ export default function HorseDetails() {
                 tabs={[
                     { key: 'activity', label: 'Bitácora', icon: Activity },
                     { key: 'health', label: 'Sanidad', icon: Syringe },
-                    { key: 'docs', label: 'Doc.', icon: FileText }
+                    { key: 'docs', label: 'Doc.', icon: FileText },
+                    { key: 'alimentacion', label: 'Alimentación', icon: Heart }
                 ]}
                 value={activeTab}
                 onChange={setActiveTab}
@@ -558,6 +559,60 @@ export default function HorseDetails() {
                         <button className="w-full py-4 border-2 border-dashed border-ink-200 rounded-xl text-ink-500 hover:border-primary-500 hover:text-primary-600 transition-colors flex items-center justify-center gap-2 font-semibold bg-white mt-4">
                             <Plus size={18} /> Subir Documento
                         </button>
+                    </div>
+                )}
+
+                {activeTab === 'alimentacion' && (
+                    <div className="space-y-4 animate-in fade-in">
+                        {horse.diet?.type === 'masiva' || !horse.diet ? (
+                            <Card padding="normal" className="text-center bg-ink-50 border-ink-100">
+                                <Heart size={32} className="mx-auto text-ink-300 mb-3" />
+                                <h3 className="text-lg font-bold text-ink-800 mb-1">Alimentación General</h3>
+                                <p className="text-sm text-ink-600">Este caballo recibe la dieta estándar del establecimiento según las indicaciones generales del personal.</p>
+                            </Card>
+                        ) : (
+                            <Card padding="normal" className="border-primary-100 bg-white">
+                                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-ink-100">
+                                    <div className="bg-primary-50 text-primary-600 p-2 rounded-lg">
+                                        <Heart size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-ink-800 leading-tight">Dieta Específica</h3>
+                                        <p className="text-xs text-ink-500">Plan de alimentación personalizado activo</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Alimento</p>
+                                        <p className="text-sm text-ink-800 font-medium">{horse.diet.feedType || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Cantidad</p>
+                                        <p className="text-sm text-ink-800 font-medium">{horse.diet.quantity || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Frecuencia</p>
+                                        <p className="text-sm text-ink-800 font-medium">{horse.diet.frequency || '-'}</p>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Instrucciones Especiales</p>
+                                        <p className="text-sm text-ink-800 font-medium">{horse.diet.instructions || '-'}</p>
+                                    </div>
+                                    {horse.diet.startDate && (
+                                        <div>
+                                            <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Fecha Inicio</p>
+                                            <p className="text-sm text-ink-800 font-medium">{horse.diet.startDate}</p>
+                                        </div>
+                                    )}
+                                    {horse.diet.endDate && (
+                                        <div>
+                                            <p className="text-xs text-ink-500 uppercase tracking-wider font-semibold mb-1">Fecha Fin</p>
+                                            <p className="text-sm text-ink-800 font-medium">{horse.diet.endDate}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </Card>
+                        )}
                     </div>
                 )}
             </div>

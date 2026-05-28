@@ -22,7 +22,13 @@ export default function HealthManagement() {
       
       let bookletStatus = 'no_booklet';
       if (booklet && booklet.expiresAt) {
-        const expiresAtDate = new Date(booklet.expiresAt);
+        let expiresAtDate;
+        if (booklet.expiresAt.seconds) {
+            expiresAtDate = new Date(booklet.expiresAt.seconds * 1000);
+        } else {
+            expiresAtDate = new Date(booklet.expiresAt);
+        }
+
         const now = new Date();
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(now.getDate() + 30);
@@ -34,12 +40,21 @@ export default function HealthManagement() {
 
       // get the most recent and next due date
       const records = healthRecords.filter(r => r.horseId === horse.id);
-      records.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      records.sort((a,b) => {
+          const tB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+          const tA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
+          return tB - tA;
+      });
       
       const lastVisit = records.length > 0 ? records[0].date : null;
       
       let nextDue = null;
-      const upcomingRecords = records.filter(r => r.nextDueDate).sort((a,b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+      const upcomingRecords = records.filter(r => r.nextDueDate).sort((a,b) => {
+          const tB = b.nextDueDate?.seconds ? b.nextDueDate.seconds * 1000 : new Date(b.nextDueDate).getTime();
+          const tA = a.nextDueDate?.seconds ? a.nextDueDate.seconds * 1000 : new Date(a.nextDueDate).getTime();
+          return tA - tB;
+      });
+      
       if (upcomingRecords.length > 0) {
         nextDue = upcomingRecords[0].nextDueDate;
       }
@@ -52,7 +67,7 @@ export default function HealthManagement() {
         nextDue
       };
     });
-  }, [activeHorses, healthRecords, healthBooklets, getHealthStatusByHorse, getHealthBookletByHorse]);
+  }, [activeHorses, healthRecords, getHealthStatusByHorse, getHealthBookletByHorse]);
 
   // --- KPIs ---
   const kpis = useMemo(() => {

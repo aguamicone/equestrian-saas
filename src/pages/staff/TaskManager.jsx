@@ -1,36 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { CheckSquare, Clock, Inbox, User, MapPin } from 'lucide-react';
 import { db } from '../../services/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useNotification } from '../../context/NotificationContext';
-import { Card, PageHeader, Tabs, EmptyState } from '../../components/ui';
+import { Card, PageHeader, EmptyState } from '../../components/ui';
 import TaskCompletionModal from '../../components/staff/modals/TaskCompletionModal';
 import DerivarTareaModal from '../../components/staff/modals/DerivarTareaModal';
 
 export default function TaskManager() {
-    const { routines, requests, addLog, updateRow, spaces, horses, updateHorseLocation, sendNotification } = useData();
+    const { routines, requests, addLog, updateRow, spaces, horses, updateHorseLocation, sendNotification, equipmentItems } = useData();
     const { currentUser } = useAuth();
     const { notify } = useNotification();
     
     const [selectedTaskId, setSelectedTaskId] = useState(null);
     const [selectedTaskType, setSelectedTaskType] = useState(null);
-    const [activeTab, setActiveTab] = useState('routines');
+    const location = useLocation();
+    
+    const [activeTab, setActiveTab] = useState(() => {
+        if (location.pathname.includes('/horses')) return 'location';
+        return 'routines';
+    });
+
+    useEffect(() => {
+        if (location.pathname.includes('/horses')) setActiveTab('location');
+        else setActiveTab('routines');
+    }, [location.pathname]);
     const [showDeriveModal, setShowDeriveModal] = useState(false);
     
     // Horses location
     const mySpaces = (spaces || []).filter(s => s.staffId === currentUser?.uid);
     const myLoadedHorses = mySpaces.map(s => (horses || []).find(h => h.id === s.horseId)).filter(Boolean);
-
-    // Initial Filter
-    const myRequests = requests.filter(r => {
-        // Solicitudes pending sin asignar: las ven todos los caballerizos
-        const isPendingUnassigned = (r.status === 'pending_staff' || r.status === 'pending') && !r.assigneeId;
-        // Solicitudes asignadas al caballerizo actual (en cualquier estado activo)
-        const isMineActive = r.assigneeId === currentUser?.uid && (r.status === 'pending_staff' || r.status === 'pending' || r.status === 'in_progress');
-        return isPendingUnassigned || isMineActive;
-    });
 
     const liveSelectedTask = selectedTaskId
         ? (selectedTaskType === 'request'
@@ -46,29 +48,23 @@ export default function TaskManager() {
         setShowDeriveModal(false);
     };
 
-    const tabs = [
-        { key: 'routines', label: 'Rutinas' },
-        { key: 'requests', label: 'Solicitudes' },
-        { key: 'location', label: 'Ubicación' }
-    ];
+    const getHeaderContent = () => {
+        switch(activeTab) {
+            case 'location': return { title: 'Caballos', subtitle: 'Control de ubicación y equipos' };
+            default: return { title: 'Mis Rutinas', subtitle: 'Rutinas de trabajo asignadas' };
+        }
+    };
+    const header = getHeaderContent();
 
     return (
-        <div className="pb-20">
+        <div className="pb-20 animate-in fade-in">
             <PageHeader 
                 kicker="Operativa"
-                title="Mis Tareas"
-                subtitle="Gestiona rutinas, solicitudes y ubicaciones"
+                title={header.title}
+                subtitle={header.subtitle}
             />
 
-            <div className="mb-6">
-                <Tabs 
-                    tabs={tabs}
-                    value={activeTab}
-                    onChange={setActiveTab}
-                />
-            </div>
-
-            <div className="space-y-3">
+            <div className="space-y-3 mt-4">
                 {activeTab === 'routines' && (
                     <>
                         {routines.length === 0 ? (
@@ -102,46 +98,6 @@ export default function TaskManager() {
                     </>
                 )}
 
-                {activeTab === 'requests' && (
-                    <>
-                        {myRequests.length === 0 ? (
-                            <EmptyState 
-                                icon={Inbox}
-                                title="Bandeja de entrada vacía"
-                                description="No tienes solicitudes pendientes por el momento."
-                            />
-                        ) : (
-                            myRequests.map(req => (
-                                <Card
-                                    key={req.id}
-                                    variant="hover"
-                                    onClick={() => handleTaskClick(req, 'request')}
-                                    className={`p-4 flex items-center justify-between cursor-pointer relative overflow-hidden ${req.autoApprove ? 'border-danger-200 bg-danger-50/30' : ''}`}
-                                >
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${req.autoApprove ? 'bg-danger-500' : (req.assigneeId ? 'bg-primary-500' : 'bg-ink-300')}`}></div>
-                                    <div className="flex items-center gap-4 pl-2">
-                                        <div className={`p-3 rounded-full ${req.autoApprove ? 'bg-danger-100 text-danger-600' : 'bg-primary-50 text-primary-600'}`}>
-                                            <Inbox size={20} />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-ink-800">{req.type}</h3>
-                                                {req.autoApprove && <span className="text-[10px] bg-danger-500 text-white px-1.5 py-0.5 rounded leading-none font-bold animate-pulse">DIRECTO</span>}
-                                            </div>
-                                            <p className="text-xs text-ink-600 italic mt-0.5">{req.details ? `"${req.details}"` : 'Sin detalles adicionales'}</p>
-                                            <div className="flex items-center gap-2 text-[10px] text-ink-500 mt-1.5">
-                                                {req.timeRequested && <span className="text-gold-600 font-bold flex items-center gap-1"><Clock size={10}/> Para las {req.timeRequested}</span>}
-                                                {req.assigneeId ? <span className="text-primary-600 flex items-center gap-1"><User size={10} /> Asignado a ti</span> : <span>General</span>}
-                                                • {req.timestamp ? new Date(req.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))
-                        )}
-                    </>
-                )}
-
                 {activeTab === 'location' && (
                     <div className="space-y-4 animate-in fade-in">
                         <p className="text-ink-600 text-sm mb-4 bg-ink-50 p-3 rounded-lg border border-ink-200">
@@ -157,6 +113,7 @@ export default function TaskManager() {
                         ) : (
                             myLoadedHorses.map(horse => {
                                 const loc = horse.location || 'box';
+                                const horseEquipment = (equipmentItems || []).filter(eq => eq.horseId === horse.id);
                                 return (
                                     <Card key={horse.id} className="p-4 space-y-4 border-ink-200">
                                         <div className="flex items-center gap-3 border-b border-ink-100 pb-3">
@@ -183,6 +140,18 @@ export default function TaskManager() {
                                                 ⭕ En Circular
                                             </button>
                                         </div>
+                                        {horseEquipment.length > 0 && (
+                                            <div className="pt-3 border-t border-ink-100">
+                                                <h4 className="text-[10px] uppercase font-bold text-ink-400 mb-2 tracking-wider">Set de Equipo Asignado</h4>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {horseEquipment.map(eq => (
+                                                        <span key={eq.id} className="text-xs bg-sky-50 text-sky-700 px-2 py-1 rounded border border-sky-100">
+                                                            <strong>{eq.name}</strong> ({eq.type})
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </Card>
                                 );
                             })

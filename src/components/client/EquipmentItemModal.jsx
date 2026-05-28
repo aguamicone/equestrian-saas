@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import Modal from '../ui/Modal';
 
 const EQUIPMENT_TYPES = [
@@ -15,7 +16,8 @@ const EQUIPMENT_TYPES = [
 ];
 
 export default function EquipmentItemModal({ isOpen, onClose, item }) {
-    const { createEquipmentItem, updateEquipmentItem } = useData();
+    const { createEquipmentItem, updateEquipmentItem, horses } = useData();
+    const { currentUser } = useAuth();
 
     const isEdit = !!item;
 
@@ -25,6 +27,7 @@ export default function EquipmentItemModal({ isOpen, onClose, item }) {
     const [condition, setCondition] = useState('nueva');
     const [usage, setUsage] = useState('entrenamiento');
     const [notes, setNotes] = useState('');
+    const [horseId, setHorseId] = useState('');
 
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +41,7 @@ export default function EquipmentItemModal({ isOpen, onClose, item }) {
                 setCondition(item.condition || 'nueva');
                 setUsage(item.usage || 'entrenamiento');
                 setNotes(item.notes || '');
+                setHorseId(item.horseId || '');
             } else {
                 setName('');
                 setType(EQUIPMENT_TYPES[0].value);
@@ -45,6 +49,7 @@ export default function EquipmentItemModal({ isOpen, onClose, item }) {
                 setCondition('nueva');
                 setUsage('entrenamiento');
                 setNotes('');
+                setHorseId('');
             }
             setError(null);
             setIsSubmitting(false);
@@ -63,7 +68,8 @@ export default function EquipmentItemModal({ isOpen, onClose, item }) {
             brand,
             condition,
             usage,
-            notes
+            notes,
+            horseId: horseId || null
         };
 
         try {
@@ -157,6 +163,24 @@ export default function EquipmentItemModal({ isOpen, onClose, item }) {
                             disabled={isSubmitting}
                         />
                     </div>
+                </div>
+
+                <div>
+                    <label className="text-sm font-medium text-ink-600 mb-1 block">¿Para qué caballo es? (Opcional)</label>
+                    <select
+                        className="input-field"
+                        value={horseId}
+                        onChange={e => setHorseId(e.target.value)}
+                        disabled={isSubmitting}
+                    >
+                        <option value="">-- Sin asignar --</option>
+                        {(horses || []).filter(h => {
+                            if (currentUser?.role === 'superAdmin' || currentUser?.role === 'tenantAdmin') return true;
+                            return h.ownerId === currentUser?.uid;
+                        }).map(h => (
+                            <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

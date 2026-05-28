@@ -112,7 +112,18 @@ export default function ClientFinance() {
                             let dueDateColor = 'text-ink-500';
                             
                             if (charge.dueDate) {
-                                const parsedDate = parseISO(charge.dueDate);
+                                let parsedDate = null;
+                                if (charge.dueDate?.toDate && typeof charge.dueDate.toDate === 'function') {
+                                    try { parsedDate = charge.dueDate.toDate(); } catch (e) { /* ignore */ }
+                                } else if (charge.dueDate?.seconds) {
+                                    parsedDate = new Date(charge.dueDate.seconds * 1000);
+                                } else if (typeof charge.dueDate === 'string') {
+                                    parsedDate = parseISO(charge.dueDate);
+                                } else if (typeof charge.dueDate === 'number') {
+                                    parsedDate = new Date(charge.dueDate);
+                                }
+
+
                                 if (isValid(parsedDate)) {
                                     const daysUntilDue = differenceInDays(parsedDate, new Date());
                                     if (daysUntilDue < 0) {
@@ -162,8 +173,16 @@ export default function ClientFinance() {
                 {paidCharges.length > 0 ? (
                     <div className="divide-y divide-ink-100">
                         {paidCharges.map(t => {
-                            const dateObj = new Date(t.date);
-                            const safeDateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString() : 'Fecha inválida';
+                            let dateObj = null;
+                            if (t.date?.toDate && typeof t.date.toDate === 'function') {
+                                try { dateObj = t.date.toDate(); } catch (e) { /* ignore */ }
+                            } else if (t.date?.seconds) {
+                                dateObj = new Date(t.date.seconds * 1000);
+                            } else if (typeof t.date === 'string' || typeof t.date === 'number') {
+                                dateObj = new Date(t.date);
+                            }
+                            const safeDateStr = (dateObj && isValid(dateObj)) ? dateObj.toLocaleDateString() : 'Fecha inválida';
+
                             return (
                                 <div key={t.id} className="p-4 flex items-center justify-between hover:bg-ink-50/50 transition-colors">
                                     <div className="flex items-center gap-4">

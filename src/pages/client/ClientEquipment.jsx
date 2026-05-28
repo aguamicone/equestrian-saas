@@ -17,7 +17,7 @@ const TYPE_ICONS = {
 };
 
 export default function ClientEquipment() {
-    const { getMyEquipmentItems, deleteEquipmentItem } = useData();
+    const { getMyEquipmentItems, deleteEquipmentItem, horses } = useData();
     const items = getMyEquipmentItems();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -114,6 +114,12 @@ export default function ClientEquipment() {
                                         </button>
                                     </div>
                                 </div>
+
+                                {item.horseId && (
+                                    <div className="bg-primary-50 text-primary-700 text-xs font-bold px-2 py-1 rounded-md mb-3 flex items-center gap-1 w-max border border-primary-100">
+                                        🐴 Para: {(horses || []).find(h => h.id === item.horseId)?.name || 'Caballo Desconocido'}
+                                    </div>
+                                )}
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Badge variant={conditionToVariant(item.condition)}>

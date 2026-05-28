@@ -32,7 +32,7 @@ import RegistrarCargoModal from './RegistrarCargoModal';
  *   onClose: () => void
  */
 export default function HorseDetailModal({ horse, onClose }) {
-  const { tenantUsers, finances, pricingPlans, updateRow, spaces, logs, horses } = useData();
+  const { tenantUsers, finances, pricingPlans, updateRow, updateHorseDiet, spaces, logs, horses } = useData();
   
   // Tanda D2: resolver versión live del caballo desde el context para evitar
   // prop stale (assignedPlanIds reactivo a onSnapshot). Patrón consistente con
@@ -104,6 +104,7 @@ export default function HorseDetailModal({ horse, onClose }) {
     },
     { key: 'location', label: 'Ubicación' },
     { key: 'sanidad', label: 'Sanidad' },
+    { key: 'alimentacion', label: 'Alimentación' },
   ];
 
   return (
@@ -180,6 +181,13 @@ export default function HorseDetailModal({ horse, onClose }) {
               onViewFull={() => setShowHealthHistory(true)} 
               onAddRecord={() => setShowCreateHealthRecord(true)} 
               isArchived={liveHorse.archived === true}
+            />
+          )}
+          {activeTab === 'alimentacion' && (
+            <AlimentacionTab 
+              horse={liveHorse} 
+              isArchived={liveHorse.archived === true}
+              updateHorseDiet={updateHorseDiet}
             />
           )}
         </div>
@@ -900,6 +908,143 @@ function SanidadTab({ horse, onViewFull, onAddRecord, isArchived }) {
       {records.length > 5 && (
         <div className="text-center pt-2">
           <span className="text-xs text-ink-500">+ {records.length - 5} registros más en la historia completa</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Tab 5: Alimentación
+// ============================================================
+function AlimentacionTab({ horse, isArchived, updateHorseDiet }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  const currentDiet = horse.diet || { type: 'masiva' };
+  
+  const [form, setForm] = useState({
+    type: currentDiet.type || 'masiva',
+    feedType: currentDiet.feedType || '',
+    quantity: currentDiet.quantity || '',
+    frequency: currentDiet.frequency || '',
+    instructions: currentDiet.instructions || '',
+    startDate: currentDiet.startDate || '',
+    endDate: currentDiet.endDate || ''
+  });
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCancel = () => {
+    setForm({
+      type: currentDiet.type || 'masiva',
+      feedType: currentDiet.feedType || '',
+      quantity: currentDiet.quantity || '',
+      frequency: currentDiet.frequency || '',
+      instructions: currentDiet.instructions || '',
+      startDate: currentDiet.startDate || '',
+      endDate: currentDiet.endDate || ''
+    });
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateHorseDiet(horse.id, form, horse.name);
+    setIsEditing(false);
+    setSaving(false);
+  };
+
+  return (
+    <div className="px-6 py-5">
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+          Régimen de Alimentación
+        </div>
+        {!isEditing ? (
+          <button
+            onClick={() => setIsEditing(true)}
+            disabled={isArchived}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+          >
+            <Pencil size={13} />
+            Editar
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancel}
+              disabled={saving}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-ink-600 hover:bg-ink-100"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              <Save size={13} />
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-4">
+          <div>
+            <div className="text-xs text-ink-500 mb-1">Tipo de Dieta</div>
+            <select
+              value={form.type}
+              onChange={(e) => handleChange('type', e.target.value)}
+              className="input-field text-sm w-full"
+            >
+              <option value="masiva">General (Alimentación estándar del establecimiento)</option>
+              <option value="especifica">Dieta Específica (Recomendación veterinaria / Especial)</option>
+            </select>
+          </div>
+          
+          {form.type === 'especifica' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-ink-100 mt-4">
+              <Field label="Alimento" value={form.feedType} isEditing={true} onChange={v => handleChange('feedType', v)} />
+              <Field label="Cantidad" value={form.quantity} isEditing={true} onChange={v => handleChange('quantity', v)} />
+              <Field label="Frecuencia" value={form.frequency} isEditing={true} onChange={v => handleChange('frequency', v)} />
+              <div className="sm:col-span-2">
+                <Field label="Instrucciones Especiales" value={form.instructions} isEditing={true} onChange={v => handleChange('instructions', v)} multiline />
+              </div>
+              <Field label="Fecha Inicio" value={form.startDate} isEditing={true} onChange={v => handleChange('startDate', v)} type="date" />
+              <Field label="Fecha Fin" value={form.endDate} isEditing={true} onChange={v => handleChange('endDate', v)} type="date" />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {currentDiet.type === 'masiva' ? (
+            <div className="bg-ink-50 border border-dashed border-ink-200 rounded-xl p-5 text-center mt-4">
+              <p className="text-sm font-medium text-ink-800">Alimentación General</p>
+              <p className="text-xs text-ink-500 mt-1">Este caballo recibe la dieta estándar del establecimiento.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-primary-50 text-primary-800 text-sm p-3 rounded-lg border border-primary-100 flex items-start gap-2 mb-4">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <p>Este caballo tiene asignada una dieta específica que genera una rutina diaria para el personal.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <Field label="Alimento" value={currentDiet.feedType} isEditing={false} />
+                <Field label="Cantidad" value={currentDiet.quantity} isEditing={false} />
+                <Field label="Frecuencia" value={currentDiet.frequency} isEditing={false} />
+                <div className="sm:col-span-2">
+                  <Field label="Instrucciones Especiales" value={currentDiet.instructions} isEditing={false} />
+                </div>
+                <Field label="Fecha Inicio" value={currentDiet.startDate} isEditing={false} />
+                <Field label="Fecha Fin" value={currentDiet.endDate} isEditing={false} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
