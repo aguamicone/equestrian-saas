@@ -242,7 +242,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                         ))}
                     </div>
 
-                    <div className={`flex-1 grid grid-cols-7 bg-ink-100 gap-[1px] ${viewMode === 'month' ? 'auto-rows-[minmax(80px,1fr)]' : 'auto-rows-[minmax(200px,1fr)]'}`}>
+                    <div className={`flex-1 grid grid-cols-7 bg-ink-100 gap-[1px] overflow-y-auto custom-scrollbar ${viewMode === 'month' ? 'auto-rows-[minmax(80px,1fr)]' : 'auto-rows-[minmax(200px,auto)]'}`}>
                         {days.map((day) => {
                             const dateStr = format(day, 'yyyy-MM-dd');
                             const dayEvents = eventsByDate[dateStr] || [];

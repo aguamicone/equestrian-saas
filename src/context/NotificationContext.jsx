@@ -11,7 +11,7 @@ export function NotificationProvider({ children }) {
     const [toasts, setToasts] = useState([]);
 
     const notify = (message, type = 'info') => {
-        const id = Date.now();
+        const id = Date.now().toString() + Math.random().toString(36).substring(2);
         setToasts(prev => [...prev, { id, message, type }]);
 
         // Auto dismiss
