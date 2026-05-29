@@ -206,8 +206,8 @@ export default function ClientFinance() {
                 ) : (
                     <div className="p-8">
                         <EmptyState 
-                            icon={<DollarSign size={40} className="text-ink-300" />}
-                            title="No hay pagos registrados"
+                            icon={DollarSign}
+                            message="No hay pagos registrados"
                             description="Tu historial de pagos aparecerá aquí una vez que realices tu primer pago."
                         />
                     </div>
