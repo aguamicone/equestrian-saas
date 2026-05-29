@@ -22,7 +22,9 @@ export default function RoutinesView() {
 
     // Apply filters
     const filteredRoutines = routines.filter(r => {
-        if (horseFilter && r.horseId !== horseFilter) return false;
+        if (horseFilter === 'GENERAL') {
+            if (r.horseId) return false;
+        } else if (horseFilter && r.horseId !== horseFilter) return false;
         if (activityFilter && r.activityType !== activityFilter) return false;
         return true;
     });
@@ -54,7 +56,7 @@ export default function RoutinesView() {
                     <p className="text-sm text-ink-500">Gestión y seguimiento de las actividades de los caballos.</p>
                 </div>
                 <button onClick={handleNewRoutineClick} className="btn-primary flex items-center gap-2 font-bold h-10">
-                    <Plus size={18} /> Nueva Rutina de Caballo
+                    <Plus size={18} /> Nueva Rutina
                 </button>
             </div>
 
@@ -68,6 +70,7 @@ export default function RoutinesView() {
                         className="input-field w-full"
                     >
                         <option value="">Todos los caballos</option>
+                        <option value="GENERAL">⚙️ General</option>
                         {activeHorses.map(h => (
                             <option key={h.id} value={h.id}>{h.name}</option>
                         ))}
@@ -88,6 +91,7 @@ export default function RoutinesView() {
                         <option value="Herrero">Herrero</option>
                         <option value="Veterinario">Veterinario</option>
                         <option value="Peluquería">Peluquería</option>
+                        <option value="General">General</option>
                     </select>
                 </div>
             </div>

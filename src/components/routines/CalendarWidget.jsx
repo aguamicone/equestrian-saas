@@ -18,8 +18,8 @@ import {
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, LayoutGrid } from 'lucide-react';
 
-export default function CalendarWidget({ currentDate, setCurrentDate, events, onEventClick, onDayClick, isClient = false }) {
-    const [viewMode, setViewMode] = useState('month');
+export default function CalendarWidget({ currentDate, setCurrentDate, events, onEventClick, onDayClick, isClient = false, defaultView = 'month', hideControls = false }) {
+    const [viewMode, setViewMode] = useState(defaultView);
 
     // Auto-detect mobile to default to day view
     useEffect(() => {
@@ -27,13 +27,13 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
             if (window.innerWidth < 768) {
                 setViewMode('day');
             } else {
-                setViewMode('month');
+                setViewMode(defaultView);
             }
         };
         handleResize(); // Initial check
         // We don't attach resize listener to avoid jumping modes while using the app,
         // just set it on mount based on initial screen size.
-    }, []);
+    }, [defaultView]);
     
     const nextTime = () => {
         if (viewMode === 'month') setCurrentDate(addMonths(currentDate, 1));
@@ -126,65 +126,54 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
         if (viewMode === 'week') {
             const start = days[0];
             const end = days[days.length - 1];
-            if (isSameMonth(start, end)) return `${format(start, 'd')} al ${format(end, 'd')} de ${format(start, 'MMMM yyyy', { locale: es })}`;
             return `${format(start, 'd MMM', { locale: es })} - ${format(end, 'd MMM yyyy', { locale: es })}`;
         }
         return format(currentDate, "EEEE d 'de' MMMM", { locale: es });
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-card border border-ink-200 overflow-hidden flex flex-col h-full">
-            {/* Header */}
-            <div className="p-4 border-b border-ink-200 bg-ink-50/50 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-xl font-bold text-ink-900 capitalize">
-                            {displayTitle()}
-                        </h2>
-                        <button 
-                            onClick={goToToday}
-                            className="px-3 py-1.5 text-xs font-bold bg-white border border-ink-200 rounded-lg text-ink-600 hover:bg-ink-50 transition-colors shadow-sm shrink-0"
-                        >
-                            Hoy
-                        </button>
-                    </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-4">
-                        {/* View Toggles */}
-                        <div className="flex bg-ink-100 p-1 rounded-xl">
-                            <button 
-                                onClick={() => setViewMode('day')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'day' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
-                            >
-                                <ListIcon size={14}/> Día
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('week')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'week' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
-                            >
-                                <LayoutGrid size={14}/> Sem
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('month')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${viewMode === 'month' ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}
-                            >
-                                <CalendarIcon size={14}/> Mes
+        <div className="bg-white rounded-2xl shadow-sm border border-ink-100 flex flex-col h-full overflow-hidden">
+            {!hideControls && (
+                <div className="p-4 sm:p-6 border-b border-ink-100 shrink-0">
+                    <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xl sm:text-2xl font-display font-medium text-ink-900 capitalize">
+                                {viewMode === 'month' ? format(currentDate, 'MMMM yyyy', { locale: es }) : 
+                                 viewMode === 'week' ? `${format(days[0], 'd')} al ${format(days[days.length-1], 'd')} de ${format(days[days.length-1], 'MMMM yyyy', { locale: es })}` :
+                                 format(currentDate, "EEEE d 'de' MMMM", { locale: es })}
+                            </h2>
+                            <button onClick={goToToday} className="px-3 py-1 text-xs font-bold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors ml-2">
+                                Hoy
                             </button>
                         </div>
-
-                        {/* Navigation */}
-                        <div className="flex items-center gap-1 bg-white border border-ink-200 rounded-xl p-1 shadow-sm">
-                            <button onClick={prevTime} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
-                                <ChevronLeft size={20} />
-                            </button>
-                            <button onClick={nextTime} className="p-1.5 text-ink-500 hover:text-ink-900 hover:bg-ink-100 rounded-lg transition-colors">
-                                <ChevronRight size={20} />
-                            </button>
+                        
+                        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto custom-scrollbar pb-2 sm:pb-0">
+                            <div className="flex bg-ink-50 p-1 rounded-lg">
+                                <button onClick={() => setViewMode('day')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'day' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}>
+                                    <ListIcon size={14}/> Día
+                                </button>
+                                <button onClick={() => setViewMode('week')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'week' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}>
+                                    <LayoutGrid size={14}/> Sem
+                                </button>
+                                <button onClick={() => setViewMode('month')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'month' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'}`}>
+                                    <CalendarIcon size={14}/> Mes
+                                </button>
+                            </div>
+                            
+                            <div className="flex gap-1 ml-auto sm:ml-2">
+                                <button onClick={prevTime} className="p-2 hover:bg-ink-50 rounded-lg text-ink-400 hover:text-ink-700 transition-colors">
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <button onClick={nextTime} className="p-2 hover:bg-ink-50 rounded-lg text-ink-400 hover:text-ink-700 transition-colors">
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
+            )}
+            
+            <div className={`flex-1 bg-ink-50 p-2 sm:p-4 overflow-hidden flex flex-col ${hideControls ? 'p-0 sm:p-0' : ''}`}>
             {/* Content Area */}
             {viewMode === 'day' ? (
                 // --- DAY VIEW (List Style) ---
@@ -309,6 +298,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

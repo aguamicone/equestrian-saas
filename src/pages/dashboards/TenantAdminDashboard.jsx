@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import CalendarWidget from '../../components/routines/CalendarWidget';
 import {
   Activity, Users, TrendingUp, TrendingDown,
   Stethoscope, Mail, Package, Sun, AlertCircle, DollarSign, Clock
@@ -8,7 +9,9 @@ import { useData } from '../../context/DataContext';
 
 export default function TenantAdminDashboard() {
   const { currentUser, currentTenant } = useAuth();
-  const { horses, spaces, finances, shifts, tenantUsers, logs } = useData();
+  const { horses, spaces, finances, shifts, tenantUsers, requests, routines } = useData();
+
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // ===== Lógica de negocio conservada del dashboard original =====
   const activeStaffMembers = useMemo(() => {
@@ -28,7 +31,7 @@ export default function TenantAdminDashboard() {
     return tenantUsers.filter(u => activeStaffIds.includes(u.uid));
   }, [shifts, tenantUsers]);
 
-  // ===== Cálculos (memoizados, como pide tu nota de Tech Lead) =====
+  // ===== Cálculos =====
   const stats = useMemo(() => {
     const totalSpaces = spaces?.length ?? 20;
     const occupied = spaces?.filter(s => s.status === 'occupied').length ?? 15;
@@ -42,8 +45,6 @@ export default function TenantAdminDashboard() {
       totalSpaces,
       occupied,
       occupancyPct,
-      // TODO: conectar a DataContext cuando 'finances' y 'alerts' 
-      //       estén disponibles. Hoy son datos de ejemplo.
       balance: finances?.filter(f => f.type === 'income' && f.status === 'paid').reduce((a, b) => a + Number(b.amount), 0) - finances?.filter(f => f.type === 'expense').reduce((a, b) => a + Number(b.amount), 0),
       monthlyChange: 8.2, // %
     };
@@ -60,14 +61,14 @@ export default function TenantAdminDashboard() {
     };
   }, [finances]);
 
-  const recentLogs = useMemo(() => {
-    if (!logs) return [];
-    return [...logs].sort((a, b) => {
-        const timeA = a.timestamp?.seconds || 0;
-        const timeB = b.timestamp?.seconds || 0;
+  const recentRequests = useMemo(() => {
+    if (!requests) return [];
+    return [...requests].sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
         return timeB - timeA;
-    }).slice(0, 4);
-  }, [logs]);
+    }).slice(0, 5);
+  }, [requests]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buen día' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
@@ -87,12 +88,10 @@ export default function TenantAdminDashboard() {
             Resumen operativo de <span className="text-primary-600 font-medium">{currentTenant?.name}</span>
           </p>
         </div>
-
-
       </div>
 
       {/* ===== KPIs ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 stagger-children">
 
         {/* KPI hero: Caballos activos (con gradiente azul) */}
         <div className="card-hover bg-primary-gradient text-white p-5 relative overflow-hidden">
@@ -157,86 +156,106 @@ export default function TenantAdminDashboard() {
             {stats.monthlyChange >= 0 ? '↑' : '↓'} {Math.abs(stats.monthlyChange)}% vs mes anterior
           </div>
         </div>
+
+        {/* KPI: Estado de Cobranzas */}
+        <div className={`kpi-card ${debtorsStats.count > 0 ? 'kpi-card-danger' : 'kpi-card-success'}`}>
+          <div className="flex items-center gap-1.5 kicker mb-3">
+            {debtorsStats.count > 0
+              ? <AlertCircle size={12} strokeWidth={2} className="text-danger-500" />
+              : <TrendingUp size={12} strokeWidth={2} className="text-success-500" />
+            }
+            Cobranzas
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-3xl font-medium text-ink-800 leading-none">
+              ${(debtorsStats.total / 1000).toLocaleString('es-AR', { maximumFractionDigits: 0 })}k
+            </span>
+          </div>
+          <div className={`text-xs mt-2 font-medium ${debtorsStats.count > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+            {debtorsStats.count > 0 ? `${debtorsStats.count} cliente(s) pendientes` : 'Todo al día'}
+          </div>
+        </div>
+
       </div>
 
-      {/* ===== Ocupación + Alertas ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* ===== Contenido Principal ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Cuadrante de Deudores */}
-        <div className="card p-5 animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
-          <div className="flex justify-between items-center mb-4">
+        {/* Calendario del Día */}
+        <div className="card animate-fade-in-up flex flex-col h-[500px]" style={{ animationDelay: '0.35s' }}>
+          <div className="p-4 sm:p-5 border-b border-ink-100 flex justify-between items-center bg-white shrink-0 rounded-t-2xl">
             <h3 className="font-display text-base font-medium text-ink-800">
-              Estado de Cobranzas
+              Calendario del Día
             </h3>
-            {debtorsStats.count > 0 ? (
-                <span className="badge-danger">Atención</span>
-            ) : (
-                <span className="badge-success">Al día</span>
-            )}
+            <span className="badge-primary">Hoy</span>
           </div>
-
-          <div className="flex flex-col items-center justify-center py-6 text-center">
-            {debtorsStats.count > 0 ? (
-              <>
-                <AlertCircle size={48} strokeWidth={1.5} className="text-danger-400 mb-4" />
-                <div className="text-3xl font-display font-medium text-ink-900 mb-1">
-                  ${debtorsStats.total.toLocaleString()}
-                </div>
-                <div className="text-sm text-ink-500">
-                  Pendiente de cobro de {debtorsStats.count} cliente(s) / caballo(s)
-                </div>
-              </>
-            ) : (
-              <>
-                <TrendingUp size={48} strokeWidth={1.5} className="text-success-400 mb-4" />
-                <div className="text-xl font-medium text-ink-900 mb-1">
-                  ¡Todo al día!
-                </div>
-                <div className="text-sm text-ink-500">
-                  No hay pagos atrasados ni pendientes.
-                </div>
-              </>
-            )}
+          <div className="flex-1 min-h-0 bg-ink-50 p-2 sm:p-3 overflow-hidden rounded-b-2xl">
+             <CalendarWidget 
+                 currentDate={currentDate} 
+                 setCurrentDate={setCurrentDate} 
+                 events={routines || []} 
+                 defaultView="day" 
+                 hideControls={true} 
+                 isClient={true} // Deshabilita clicks por ahora en el dashboard
+             />
           </div>
         </div>
 
         {/* Últimas actividades */}
-        <div className="card p-5 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+        <div className="card p-5 animate-fade-in-up flex flex-col" style={{ animationDelay: '0.4s' }}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-display text-base font-medium text-ink-800">
               Últimas Actividades
             </h3>
           </div>
 
-          <div className="space-y-2">
-            {recentLogs.length > 0 ? (
-              recentLogs.map(log => {
+          <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
+            {recentRequests.length > 0 ? (
+              recentRequests.map(req => {
                  let tone = 'neutral';
                  let icon = Activity;
-                 if (log.type.includes('charge') || log.type.includes('payment') || log.type.includes('plan')) {
-                     tone = 'gold';
-                     icon = DollarSign;
-                 } else if (log.type.includes('horse') || log.type.includes('health')) {
+                 let subtitle = '';
+                 
+                 const horseName = horses?.find(h => h.id === req.horseId)?.name || 'su caballo';
+                 const clientName = tenantUsers?.find(u => u.uid === req.clientId)?.displayName || 'Cliente';
+
+                 if (req.status === 'pending_staff' || req.status === 'pending_admin') {
                      tone = 'primary';
-                     icon = Stethoscope;
-                 } else if (log.type.includes('user') || log.type.includes('staff')) {
+                     icon = Clock;
+                     subtitle = `${clientName} solicitó ${req.type} para ${horseName}`;
+                 } else if (req.status === 'in_progress') {
+                     tone = 'gold';
+                     icon = Activity;
+                     subtitle = `Se confirmó la preparación de ${horseName}`;
+                 } else if (req.status === 'completed') {
                      tone = 'success';
-                     icon = Users;
+                     icon = Stethoscope;
+                     subtitle = `Se completó el servicio de ${horseName}`;
+                 } else if (req.status === 'cancelled') {
+                     tone = 'danger';
+                     icon = AlertCircle;
+                     subtitle = `Servicio cancelado para ${horseName}`;
+                 } else {
+                     subtitle = `${clientName}: ${req.type}`;
                  }
 
-                 const date = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Reciente';
+                 const dateObj = new Date(req.timestamp);
+                 const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                 const isToday = new Date().toDateString() === dateObj.toDateString();
+                 const dateStr = isToday ? `Hoy ${timeStr}` : `${dateObj.toLocaleDateString()} ${timeStr}`;
+
                  return (
                      <AlertRow
-                        key={log.id}
+                        key={req.id}
                         icon={icon}
                         tone={tone}
-                        title={log.details || log.type}
-                        subtitle={`${log.staffName || 'Sistema'} · ${date}`}
+                        title={subtitle}
+                        subtitle={dateStr}
                      />
                  );
               })
             ) : (
-              <div className="text-sm text-ink-500 text-center py-4">No hay actividades recientes hoy.</div>
+              <div className="text-sm text-ink-500 text-center py-4">No hay solicitudes recientes.</div>
             )}
           </div>
         </div>
