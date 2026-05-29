@@ -13,7 +13,8 @@ const ACTIVITY_TYPES = [
     'Descanso',
     'Herrero',
     'Veterinario',
-    'Peluquería'
+    'Peluquería',
+    'General'
 ];
 
 const DAYS_OF_WEEK = [
@@ -39,19 +40,21 @@ export default function RoutineModal({ isOpen, onClose, selectedDate, editingRou
         date: '',
         daysOfWeek: [],
         time: '08:00',
-        assignedStaffId: ''
+        assignedStaffId: '',
+        description: ''
     });
 
     useEffect(() => {
         if (editingRoutine) {
             setFormData({
-                horseId: editingRoutine.horseId || '',
+                horseId: editingRoutine.horseId || (editingRoutine.horseName === 'General' ? 'GENERAL' : ''),
                 activityType: editingRoutine.activityType || 'Noria',
                 routineType: editingRoutine.routineType || 'single',
                 date: editingRoutine.date || '',
                 daysOfWeek: editingRoutine.daysOfWeek || [],
                 time: editingRoutine.time || '08:00',
-                assignedStaffId: editingRoutine.assignedStaffId || ''
+                assignedStaffId: editingRoutine.assignedStaffId || '',
+                description: editingRoutine.description || ''
             });
         } else {
             setFormData({
@@ -61,7 +64,8 @@ export default function RoutineModal({ isOpen, onClose, selectedDate, editingRou
                 date: selectedDate || new Date().toISOString().split('T')[0],
                 daysOfWeek: [],
                 time: '08:00',
-                assignedStaffId: ''
+                assignedStaffId: '',
+                description: ''
             });
         }
     }, [editingRoutine, selectedDate, isOpen]);
@@ -82,7 +86,7 @@ export default function RoutineModal({ isOpen, onClose, selectedDate, editingRou
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.horseId) {
-            notify('Selecciona un caballo', 'error');
+            notify('Selecciona un caballo o "General"', 'error');
             return;
         }
 
@@ -93,10 +97,13 @@ export default function RoutineModal({ isOpen, onClose, selectedDate, editingRou
 
         setSaving(true);
         try {
-            const horse = horses.find(h => h.id === formData.horseId);
+            const isGeneral = formData.horseId === 'GENERAL';
+            const horse = isGeneral ? null : horses.find(h => h.id === formData.horseId);
             const dataToSave = {
                 ...formData,
-                horseName: horse?.name || 'Desconocido',
+                horseId: isGeneral ? '' : formData.horseId,
+                horseName: isGeneral ? 'General' : (horse?.name || 'Desconocido'),
+                description: isGeneral ? formData.description : '',
                 tenantId: currentTenant.id
             };
 
@@ -195,17 +202,32 @@ export default function RoutineModal({ isOpen, onClose, selectedDate, editingRou
                     <label className="text-sm font-semibold text-ink-800">Caballo</label>
                     <select
                         value={formData.horseId}
-                        onChange={(e) => setFormData({ ...formData, horseId: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, horseId: e.target.value, activityType: e.target.value === 'GENERAL' ? 'General' : (formData.activityType === 'General' ? 'Noria' : formData.activityType) })}
                         className="input-field"
                         required
                         disabled={saving}
                     >
                         <option value="">Selecciona un caballo...</option>
+                        <option value="GENERAL">⚙️ General</option>
                         {activeHorses.map(h => (
                             <option key={h.id} value={h.id}>{h.name}</option>
                         ))}
                     </select>
                 </div>
+
+                {formData.horseId === 'GENERAL' && (
+                    <div className="space-y-1">
+                        <label className="text-sm font-semibold text-ink-800">Descripción</label>
+                        <input
+                            type="text"
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            className="input-field"
+                            placeholder="Ej: Reunión cross, Visita proveedor, etc."
+                            disabled={saving}
+                        />
+                    </div>
+                )}
 
                 <div className="space-y-1">
                     <label className="text-sm font-semibold text-ink-800">Tipo de Actividad</label>
