@@ -264,12 +264,12 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                 <div 
                                     key={day.toString()} 
                                     onClick={() => !isClient && onDayClick && onDayClick(dateStr)}
-                                    className={`bg-white p-1 sm:p-2 transition-colors relative group
+                                    className={`bg-white p-1 sm:p-2 transition-colors relative group flex flex-col min-w-0
                                         ${isCurrentMonth || viewMode === 'week' ? '' : 'bg-ink-50/30'}
                                         ${!isClient && 'cursor-pointer hover:bg-primary-50/30'}
                                     `}
                                 >
-                                    <div className="flex justify-between items-start mb-1 sm:mb-2">
+                                    <div className="flex justify-between items-start mb-1 sm:mb-2 shrink-0">
                                         <span className={`text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full
                                             ${isToday ? 'bg-primary-600 text-white shadow-sm' : 
                                               (isCurrentMonth || viewMode === 'week') ? 'text-ink-900' : 'text-ink-400'}`}
@@ -278,7 +278,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                         </span>
                                     </div>
 
-                                    <div className="space-y-1 overflow-y-auto custom-scrollbar pr-0.5 h-[calc(100%-30px)]">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-1 min-h-0">
                                         {dayEvents.map(event => (
                                             <div 
                                                 key={event.id}
