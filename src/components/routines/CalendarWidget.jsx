@@ -95,7 +95,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                         pushEvent(dateStr, { ...event, activityType: event.name }); 
                     }
                 } else {
-                    if (event.date === dateStr && event.horseId) {
+                    if (event.date === dateStr) {
                         pushEvent(dateStr, event);
                     }
                 }
@@ -108,10 +108,9 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
         return grouped;
     }, [events, days]);
 
-    const getActivityColor = (activityType, isGeneral) => {
-        if (isGeneral) return 'bg-ink-100 text-ink-800 border-ink-200'; 
-
+    const getActivityColor = (activityType) => {
         switch (activityType?.toLowerCase()) {
+            case 'general': return 'bg-purple-100 text-purple-800 border-purple-200';
             case 'noria': return 'bg-sky-100 text-sky-800 border-sky-200';
             case 'pista': return 'bg-primary-100 text-primary-800 border-primary-200';
             case 'descanso': return 'bg-ink-100 text-ink-800 border-ink-200';
@@ -209,11 +208,11 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                     <div 
                                         key={event.id}
                                         onClick={(e) => {
-                                            if (event.horseId && !isClient) {
+                                            if (!isClient) {
                                                 onEventClick && onEventClick(event);
                                             }
                                         }}
-                                        className={`bg-white p-4 rounded-xl shadow-sm border border-ink-100 flex items-start gap-4 transition-all ${!isClient && event.horseId ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200' : 'cursor-default'}`}
+                                        className={`bg-white p-4 rounded-xl shadow-sm border border-ink-100 flex items-start gap-4 transition-all ${!isClient ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200' : 'cursor-default'}`}
                                     >
                                         <div className="shrink-0 w-16 text-center">
                                             <span className="block text-sm font-black text-ink-900">{event.time || 'N/A'}</span>
@@ -221,16 +220,19 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start">
                                                 <h4 className="font-bold text-ink-800 text-base leading-tight">
-                                                    {event.horseName || '⚙️ Tarea General'}
+                                                    {event.horseId ? event.horseName : (event.description || 'Tarea General')}
                                                 </h4>
-                                                <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg border ${getActivityColor(event.activityType, !event.horseId)}`}>
+                                                {!event.horseId && event.description && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500">General</span>
+                                                )}
+                                                <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg border ${getActivityColor(event.activityType)}`}>
                                                     {event.activityType}
                                                 </span>
                                             </div>
-                                            {(event.notes || event.routineType?.includes('recurring')) && (
+                                            {(event.notes || event.description || event.routineType?.includes('recurring')) && (
                                                 <div className="mt-2 text-sm text-ink-500 flex items-center gap-2">
                                                     {event.routineType?.includes('recurring') && <span title="Recurrente">🔁</span>}
-                                                    <span>{event.notes || 'Sin detalles extra'}</span>
+                                                    <span>{event.description || event.notes || 'Sin detalles extra'}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -262,7 +264,7 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                 <div 
                                     key={day.toString()} 
                                     onClick={() => !isClient && onDayClick && onDayClick(dateStr)}
-                                    className={`bg-white p-1 sm:p-2 transition-colors relative group overflow-hidden
+                                    className={`bg-white p-1 sm:p-2 transition-colors relative group
                                         ${isCurrentMonth || viewMode === 'week' ? '' : 'bg-ink-50/30'}
                                         ${!isClient && 'cursor-pointer hover:bg-primary-50/30'}
                                     `}
@@ -282,15 +284,15 @@ export default function CalendarWidget({ currentDate, setCurrentDate, events, on
                                                 key={event.id}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (event.horseId && !isClient) {
+                                                    if (!isClient) {
                                                         onEventClick && onEventClick(event);
                                                     }
                                                 }}
-                                                className={`p-1 sm:px-2 sm:py-1.5 text-[9px] sm:text-xs rounded border flex flex-col transition-transform shadow-sm ${!isClient && event.horseId ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'} ${getActivityColor(event.activityType, !event.horseId)}`}
+                                                className={`p-1 sm:px-2 sm:py-1.5 text-[9px] sm:text-xs rounded border flex flex-col transition-transform shadow-sm ${!isClient ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'} ${getActivityColor(event.activityType)}`}
                                             >
                                                 <div className="flex items-center justify-between gap-1">
-                                                    <span className="font-bold truncate" title={event.horseName || 'Tarea General'}>
-                                                        {event.horseName || '⚙'}
+                                                    <span className="font-bold truncate" title={event.horseId ? event.horseName : (event.description || 'Tarea General')}>
+                                                        {event.horseId ? event.horseName : (event.description || '⚙')}
                                                     </span>
                                                     {event.time && <span className="hidden sm:inline text-[9px] font-mono opacity-80 shrink-0">{event.time}</span>}
                                                 </div>
