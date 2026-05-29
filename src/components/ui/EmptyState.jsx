@@ -17,8 +17,8 @@ export default function EmptyState({
   const renderIcon = () => {
     if (!Icon) return <Inbox size={24} strokeWidth={1.5} className="text-ink-400" />;
     
-    // If it's a function/class component:
-    if (typeof Icon === 'function') {
+    // If it's a function/class component OR a forwardRef object (lucide-react):
+    if (typeof Icon === 'function' || (typeof Icon === 'object' && Icon.$$typeof)) {
       const IconComponent = Icon;
       return <IconComponent size={24} strokeWidth={1.5} className="text-ink-400" />;
     }
