@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users, Briefcase, Calendar, BookOpen } from 'lucide-react';
+import { Home, Activity, Menu, LogOut, X, PlusCircle, DollarSign, Ticket, Users, Briefcase, Calendar, BookOpen, Target } from 'lucide-react';
 import NotificationBell from '../common/NotificationBell';
 import { useState } from 'react';
 
@@ -73,6 +73,9 @@ export default function ClientLayout() {
                         <div className="flex-1 overflow-y-auto p-4 space-y-1">
                             <button onClick={() => { navigate('/client/calendar'); setMenuOpen(false); }} className="flex items-center gap-3 text-ink-700 hover:text-primary-700 hover:bg-primary-50 px-3 py-2.5 rounded-lg w-full transition-colors text-sm font-medium">
                                 <Calendar size={18} /> Mi Calendario
+                            </button>
+                            <button onClick={() => { navigate('/client/training'); setMenuOpen(false); }} className="flex items-center gap-3 text-ink-700 hover:text-primary-700 hover:bg-primary-50 px-3 py-2.5 rounded-lg w-full transition-colors text-sm font-medium">
+                                <Target size={18} /> Pista Digital
                             </button>
                             <button onClick={() => { navigate('/client/finance'); setMenuOpen(false); }} className="flex items-center gap-3 text-ink-700 hover:text-primary-700 hover:bg-primary-50 px-3 py-2.5 rounded-lg w-full transition-colors text-sm font-medium">
                                 <DollarSign size={18} /> Mis Finanzas

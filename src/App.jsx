@@ -38,6 +38,7 @@ import ClientFinance from './pages/client/ClientFinance';
 import Events from './pages/client/Events';
 import ClientEquipment from './pages/client/ClientEquipment';
 import ClientRoutinesView from './pages/client/ClientRoutinesView';
+import TrainingCourse from './pages/client/TrainingCourse';
 
 // Staff
 import StaffDashboard from './pages/dashboards/StaffDashboard';
@@ -118,6 +119,7 @@ function App() {
                                 <Route path="events" element={<Events />} />
                                 <Route path="equipment" element={<ClientEquipment />} />
                                 <Route path="calendar" element={<ClientRoutinesView />} />
+                                <Route path="training" element={<TrainingCourse />} />
                                 <Route path="directory" element={<DirectoryView />} />
                             </Route>
 

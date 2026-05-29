@@ -59,6 +59,7 @@ export function DataProvider({ children }) {
     const [tenantSettings, setTenantSettings] = useState(null);
     const [equipmentItems, setEquipmentItems] = useState([]);
     const [tenantRoles, setTenantRoles] = useState([]);
+    const [trainingRounds, setTrainingRounds] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Initial Load & Real-time Subscription via onSnapshot
@@ -150,6 +151,9 @@ export function DataProvider({ children }) {
         unsubs.push(subscribe('DIRECTORY', setDirectoryContacts));
         unsubs.push(subscribe('USERS', setTenantUsers));
         unsubs.push(subscribe('TENANT_ROLES', setTenantRoles));
+        if (currentUser?.role === 'client') {
+            unsubs.push(subscribe('TRAINING_ROUNDS', setTrainingRounds, [where('clientId', '==', currentUser.uid), orderBy('timestamp', 'desc'), limit(100)]));
+        }
         if (currentUser?.role !== 'client') {
             unsubs.push(subscribe('EQUIPMENT_ITEMS', setEquipmentItems));
         }
@@ -1896,10 +1900,42 @@ export function DataProvider({ children }) {
         }
     };
 
+    // ─── Training Rounds (Pista Digital) ──────────────────────────────────────
+    const saveTrainingRound = async (roundData) => {
+        if (!currentTenant?.id || !currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        try {
+            const docRef = await addDoc(collection(db, 'TRAINING_ROUNDS'), {
+                tenantId: currentTenant.id,
+                clientId: currentUser.uid,
+                clientName: currentUser.displayName || 'Cliente',
+                timestamp: new Date().toISOString(),
+                ...roundData
+            });
+            notify('Entrenamiento registrado exitosamente', 'success');
+            return { success: true, id: docRef.id };
+        } catch (error) {
+            console.error('Error guardando training round:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteTrainingRound = async (roundId) => {
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+        try {
+            await deleteDoc(doc(db, 'TRAINING_ROUNDS', roundId));
+            notify('Registro de entrenamiento eliminado', 'success');
+            return { success: true };
+        } catch (error) {
+            console.error('Error eliminando training round:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
     const value = {
         spaces, horses, finances, logs, requests, routines, pricingPlans, shifts,
         tenantUsers, tenantSettings, inventory, servicesCatalog, inventoryLogs, payrollAdvances,
         notifications, events, healthRecords, healthBooklets, directoryContacts, equipmentItems, tenantRoles,
+        trainingRounds,
         loading,
         
         createEquipmentItem, updateEquipmentItem, deleteEquipmentItem,
@@ -1917,7 +1953,8 @@ export function DataProvider({ children }) {
         
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse,
-        createContact, updateContact, deleteContact
+        createContact, updateContact, deleteContact,
+        saveTrainingRound, deleteTrainingRound
     };
 
     return (
