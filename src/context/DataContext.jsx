@@ -127,9 +127,9 @@ export function DataProvider({ children }) {
         }
         unsubs.push(subscribe('LOGS', setLogs, [orderBy('timestamp', 'desc'), limit(200)]));
         if (currentUser?.role === 'client') {
-            unsubs.push(subscribe('REQUESTS', setRequests, [where('clientId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(100)]));
+            unsubs.push(subscribe('REQUESTS', setRequests, [where('clientId', '==', currentUser.uid), orderBy('timestamp', 'desc'), limit(100)]));
         } else {
-            unsubs.push(subscribe('REQUESTS', setRequests, [orderBy('createdAt', 'desc'), limit(100)]));
+            unsubs.push(subscribe('REQUESTS', setRequests, [orderBy('timestamp', 'desc'), limit(100)]));
         }
         unsubs.push(subscribe('ROUTINES', setRoutines));
         unsubs.push(subscribe('PRICING_PLANS', setPricingPlans));
@@ -319,6 +319,15 @@ export function DataProvider({ children }) {
                 )
             );
             await Promise.all(notifPromises);
+            
+            // Add activity log so Admin can see it
+            const clientName = currentUser?.displayName || 'Cliente';
+            await addLog({
+                type: 'service_request',
+                details: `${clientName} solicitó ${serviceName} para ${horseName}`,
+                horseId,
+                clientId
+            });
             
             notify('Solicitud de servicio enviada', 'success');
             

@@ -67,33 +67,64 @@ export default function TaskManager() {
             <div className="space-y-3 mt-4">
                 {activeTab === 'routines' && (
                     <>
-                        {routines.length === 0 ? (
+                        {routines.length === 0 && requests.filter(r => ['pending_staff', 'in_progress'].includes(r.status)).length === 0 ? (
                             <EmptyState 
                                 icon={CheckSquare}
-                                title="No hay rutinas asignadas"
-                                description="No tienes rutinas pendientes en este momento."
+                                title="No hay tareas asignadas"
+                                description="No tienes rutinas ni pedidos pendientes en este momento."
                             />
                         ) : (
-                            routines.map(routine => (
-                                <Card
-                                    key={routine.id}
-                                    variant="hover"
-                                    onClick={() => handleTaskClick(routine, 'routine')}
-                                    className="p-4 flex items-center justify-between cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-primary-50 rounded-full text-primary-600">
-                                            <CheckSquare size={20} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-ink-800">{routine.name}</h3>
-                                            <div className="flex items-center gap-2 text-xs text-ink-500 mt-1">
-                                                <Clock size={12} /> {routine.time || 'Flexible'} • {routine.frequency}
+                            <>
+                                {/* Pedidos Especiales (Requests) */}
+                                {requests.filter(r => ['pending_staff', 'in_progress'].includes(r.status)).map(req => {
+                                    const horse = (horses || []).find(h => h.id === req.horseId);
+                                    return (
+                                        <Card
+                                            key={req.id}
+                                            variant="hover"
+                                            onClick={() => handleTaskClick(req, 'request')}
+                                            className="p-4 flex items-center justify-between cursor-pointer border-primary-300 bg-primary-50/50"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-primary-100 rounded-full text-primary-700">
+                                                    <Inbox size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-primary-900 leading-tight flex items-center gap-2">
+                                                        <span className="bg-primary-600 text-white text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold">Nuevo</span>
+                                                        {req.type}
+                                                    </h3>
+                                                    <div className="flex items-center gap-2 text-xs text-primary-700 mt-1">
+                                                        <Clock size={12} /> Para {horse?.name || 'Caballo'} {req.timeRequested && `• ${req.timeRequested}`}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+
+                                {/* Rutinas Normales */}
+                                {routines.map(routine => (
+                                    <Card
+                                        key={routine.id}
+                                        variant="hover"
+                                        onClick={() => handleTaskClick(routine, 'routine')}
+                                        className="p-4 flex items-center justify-between cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-primary-50 rounded-full text-primary-600">
+                                                <CheckSquare size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-ink-800">{routine.name}</h3>
+                                                <div className="flex items-center gap-2 text-xs text-ink-500 mt-1">
+                                                    <Clock size={12} /> {routine.time || 'Flexible'} • {routine.frequency}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </Card>
-                            ))
+                                    </Card>
+                                ))}
+                            </>
                         )}
                     </>
                 )}
