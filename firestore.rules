@@ -490,6 +490,33 @@ service cloud.firestore {
       );
     }
 
+    // ----- TRAINING_ROUNDS (Pista Digital — Entrenamientos del cliente) -----
+    // Read: el propio cliente (solo sus docs), tenantAdmin, o superAdmin
+    // Create: el propio cliente (con su clientId)
+    // Update: el propio cliente (solo sus docs)
+    // Delete: el propio cliente (solo sus docs) o tenantAdmin
+    match /TRAINING_ROUNDS/{roundId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isTenantAdmin(resource.data.tenantId) ||
+        (isClient(resource.data.tenantId) && resource.data.clientId == request.auth.uid)
+      );
+      allow create: if isSuperAdmin() || (
+        isCreatingForMyTenant() &&
+        request.resource.data.clientId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || (
+        isUpdatingMyTenantDoc() &&
+        resource.data.clientId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isDeletingMyTenantDoc() && (
+          getUserData().role == 'tenantAdmin' ||
+          resource.data.clientId == request.auth.uid
+        )
+      );
+    }
+
     // ============================================================
     // CATCH-ALL FINAL
     // Solo superAdmin puede acceder a colecciones no listadas arriba.

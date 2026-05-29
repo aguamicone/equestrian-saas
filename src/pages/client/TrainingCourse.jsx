@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { Card, PageHeader, EmptyState } from '../../components/ui';
+import { Card } from '../../components/ui';
 import {
   Trash2, ListTodo, Save, AlertCircle, Trophy, Calendar, Settings,
   MapPin, ClipboardList, Plus, ChevronDown, ChevronUp, Target
@@ -229,7 +229,7 @@ export default function TrainingCourse() {
       </div>
 
       {/* ═══════ MAIN CONTENT ═══════ */}
-      <div className="flex-1 px-4 py-3 pb-24">
+      <div className="flex-1 px-4 py-3 pb-36">
 
         {/* ─── TAB 1: FICHA ─── */}
         {activeTab === 'ficha' && (
@@ -689,8 +689,8 @@ export default function TrainingCourse() {
 
       {/* ═══════ SAVE MODAL ═══════ */}
       {saveModalOpen && (
-        <div className="fixed inset-0 bg-ink-950/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="bg-white rounded-t-2xl md:rounded-2xl border border-ink-200 max-w-lg w-full p-4 space-y-3 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-ink-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-ink-200 max-w-lg w-full p-4 space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-start border-b pb-2">
               <div>
                 <h3 className="text-base font-bold text-ink-900 flex items-center gap-2"><Save className="text-primary-500" size={18} /> Registrar Sesión</h3>
