@@ -1516,6 +1516,34 @@ export function DataProvider({ children }) {
         }
     };
 
+    const addExpense = async (expenseData) => {
+        if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
+        if (!currentUser?.uid) return { success: false, error: 'Sesión inválida.' };
+
+        try {
+            const { category, description, amount, date, status, provider, quantity } = expenseData;
+            const newExpenseRef = doc(collection(db, 'FINANCES'));
+
+            await setDoc(newExpenseRef, {
+                type: 'expense',
+                category: category || 'Otros',
+                description: description || '',
+                amount: Number(amount || 0),
+                date: date || new Date().toISOString().slice(0, 10),
+                status: status || 'paid',
+                provider: provider || null,
+                quantity: quantity || null,
+                tenantId: currentTenant.id,
+                createdAt: serverTimestamp(),
+                createdBy: currentUser.uid
+            });
+
+            return { success: true, id: newExpenseRef.id };
+        } catch (error) {
+            console.error('Error al registrar gasto:', error);
+            return { success: false, error: error.message };
+        }
+    };
 
     const createClientWithHorses = async ({ client, horses }) => {
         if (!currentTenant?.id) {
@@ -1954,7 +1982,8 @@ export function DataProvider({ children }) {
         createHealthRecord, updateHealthRecord, deleteHealthRecord, upsertHealthBooklet,
         getHealthRecordsByHorse, getHealthBookletByHorse, getHealthStatusByHorse,
         createContact, updateContact, deleteContact,
-        saveTrainingRound, deleteTrainingRound
+        saveTrainingRound, deleteTrainingRound,
+        addExpense
     };
 
     return (

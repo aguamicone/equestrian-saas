@@ -6,6 +6,7 @@ import { Card, PageHeader, Tabs, Badge, EmptyState, Modal } from '../../componen
 import GenerarCargosMensualesModal from '../../components/finanzas/modals/GenerarCargosMensualesModal';
 import PricingPlanModal from '../../components/finanzas/modals/PricingPlanModal';
 import MarkAsPaidModal from '../../components/horses/modals/MarkAsPaidModal';
+import RegistrarGastoModal from '../../components/finanzas/modals/RegistrarGastoModal';
 
 export default function FinanceOverview() {
     const { finances, pricingPlans, tenantUsers, deletePendingCharge, deleteRow } = useData();
@@ -15,9 +16,14 @@ export default function FinanceOverview() {
     const [showModal, setShowModal] = useState(false);
     const [showGenerarCargos, setShowGenerarCargos] = useState(false);
     const [showRegistrarCobroGlobal, setShowRegistrarCobroGlobal] = useState(false);
+    const [showRegistrarGasto, setShowRegistrarGasto] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
     const [chargeToMark, setChargeToMark] = useState(null);
     const [chargeToEdit, setChargeToEdit] = useState(null);
+
+    // Filters for Expenses
+    const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('');
+    const [expenseStatusFilter, setExpenseStatusFilter] = useState('');
 
     const handleDeleteCharge = async (charge) => {
         if (window.confirm(`¿Estás seguro de que deseas eliminar este cargo pendiente de $${charge.amount}?`)) {
@@ -47,6 +53,11 @@ export default function FinanceOverview() {
                .reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
     , [finances]);
 
+    const unpaidExpenses = useMemo(() => 
+        finances.filter(f => f.type === 'expense' && f.status === 'pending')
+               .reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+    , [finances]);
+
     const balance = income - expenses;
 
     const handleOpenModal = (plan = null) => {
@@ -61,6 +72,7 @@ export default function FinanceOverview() {
 
     const tabsConfig = [
         { key: 'overview', label: 'Resumen' },
+        { key: 'expenses', label: 'Gastos' },
         { key: 'pricing', label: 'Planes de Precio' }
     ];
 
@@ -97,14 +109,14 @@ export default function FinanceOverview() {
 
             {activeTab === 'overview' && (
                 <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <Card variant="default" className="flex flex-col justify-between">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="text-sm font-medium text-ink-500 mb-1">Ingresos Totales</div>
-                                    <div className="text-3xl font-bold text-success-700">+${income.toLocaleString()}</div>
+                                    <div className="text-2xl font-bold text-success-700">+${income.toLocaleString()}</div>
                                 </div>
-                                <div className="p-3 bg-success-50 rounded-full text-success-600 border border-success-100">
+                                <div className="p-3 bg-success-50 rounded-full text-success-600 border border-success-100 hidden sm:block">
                                     <TrendingUp size={24} />
                                 </div>
                             </div>
@@ -114,10 +126,22 @@ export default function FinanceOverview() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="text-sm font-medium text-ink-500 mb-1">Gastos Totales</div>
-                                    <div className="text-3xl font-bold text-danger-700">-${expenses.toLocaleString()}</div>
+                                    <div className="text-2xl font-bold text-danger-700">-${expenses.toLocaleString()}</div>
                                 </div>
-                                <div className="p-3 bg-danger-50 rounded-full text-danger-600 border border-danger-100">
+                                <div className="p-3 bg-danger-50 rounded-full text-danger-600 border border-danger-100 hidden sm:block">
                                     <TrendingDown size={24} />
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card variant="default" className="flex flex-col justify-between border-l-4 border-l-gold-400">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-sm font-medium text-ink-500 mb-1">A Pagar (Gastos)</div>
+                                    <div className="text-2xl font-bold text-gold-700">${unpaidExpenses.toLocaleString()}</div>
+                                </div>
+                                <div className="p-3 bg-gold-50 rounded-full text-gold-600 border border-gold-100 hidden sm:block">
+                                    <AlertCircle size={24} />
                                 </div>
                             </div>
                         </Card>
@@ -126,11 +150,11 @@ export default function FinanceOverview() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="text-sm font-medium text-ink-500 mb-1">Balance Neto</div>
-                                    <div className={`text-3xl font-bold ${balance >= 0 ? 'text-primary-700' : 'text-danger-700'}`}>
+                                    <div className={`text-2xl font-bold ${balance >= 0 ? 'text-primary-700' : 'text-danger-700'}`}>
                                         ${balance.toLocaleString()}
                                     </div>
                                 </div>
-                                <div className={`p-3 rounded-full border ${balance >= 0 ? 'bg-primary-50 text-primary-600 border-primary-100' : 'bg-danger-50 text-danger-600 border-danger-100'}`}>
+                                <div className={`p-3 rounded-full border hidden sm:block ${balance >= 0 ? 'bg-primary-50 text-primary-600 border-primary-100' : 'bg-danger-50 text-danger-600 border-danger-100'}`}>
                                     <DollarSign size={24} />
                                 </div>
                             </div>
@@ -222,9 +246,116 @@ export default function FinanceOverview() {
                         ) : (
                             <div className="p-8">
                                 <EmptyState 
-                                    icon={<DollarSign size={40} className="text-ink-300" />}
+                                    icon={DollarSign}
                                     title="No hay transacciones"
                                     description="Aún no hay ingresos ni egresos registrados en el sistema."
+                                />
+                            </div>
+                        )}
+                    </Card>
+                </div>
+            )}
+
+            {activeTab === 'expenses' && (
+                <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between gap-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <select
+                                value={expenseCategoryFilter}
+                                onChange={(e) => setExpenseCategoryFilter(e.target.value)}
+                                className="input-field py-2 text-sm w-auto"
+                            >
+                                <option value="">Todas las Categorías</option>
+                                <option value="Alimentación">Alimentación</option>
+                                <option value="Veterinaria">Veterinaria</option>
+                                <option value="Mantenimiento">Mantenimiento</option>
+                                <option value="Limpieza">Limpieza</option>
+                                <option value="Proveedores">Proveedores</option>
+                                <option value="Personal">Personal</option>
+                                <option value="Servicios (Luz, Agua, etc)">Servicios</option>
+                                <option value="Otros">Otros</option>
+                            </select>
+                            <select
+                                value={expenseStatusFilter}
+                                onChange={(e) => setExpenseStatusFilter(e.target.value)}
+                                className="input-field py-2 text-sm w-auto"
+                            >
+                                <option value="">Todos los Estados</option>
+                                <option value="paid">Ya Pagado</option>
+                                <option value="pending">A Pagar (Deuda)</option>
+                            </select>
+                        </div>
+                        <button onClick={() => setShowRegistrarGasto(true)} className="btn-primary flex items-center justify-center gap-2">
+                            <Plus size={18} /> Registrar Gasto
+                        </button>
+                    </div>
+
+                    <Card padding="none" className="overflow-hidden border-ink-200">
+                        {finances.filter(f => f.type === 'expense').length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-ink-50 text-ink-500 border-b border-ink-200">
+                                        <tr>
+                                            <th className="p-4 font-medium text-sm">Fecha</th>
+                                            <th className="p-4 font-medium text-sm">Descripción / Proveedor</th>
+                                            <th className="p-4 font-medium text-sm">Categoría</th>
+                                            <th className="p-4 font-medium text-sm text-right">Monto</th>
+                                            <th className="p-4 font-medium text-sm text-center">Estado</th>
+                                            <th className="p-4 font-medium text-sm text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-ink-100 text-ink-900">
+                                        {finances
+                                            .filter(f => f.type === 'expense')
+                                            .filter(f => expenseCategoryFilter ? f.category === expenseCategoryFilter : true)
+                                            .filter(f => expenseStatusFilter ? f.status === expenseStatusFilter : true)
+                                            .sort((a, b) => b.date.localeCompare(a.date))
+                                            .map(item => (
+                                            <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
+                                                <td className="p-4 text-sm text-ink-500">{item.date}</td>
+                                                <td className="p-4">
+                                                    <div className="font-bold">{item.description}</div>
+                                                    {(item.provider || item.quantity) && (
+                                                        <div className="text-xs text-ink-500">
+                                                            {[item.provider, item.quantity].filter(Boolean).join(' - ')}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="p-4">
+                                                    <Badge variant="neutral">{item.category}</Badge>
+                                                </td>
+                                                <td className="p-4 text-right font-bold font-mono text-base text-danger-700">
+                                                    -${item.amount.toLocaleString()}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    {item.status === 'paid' ? (
+                                                        <Badge variant="success">Pagado</Badge>
+                                                    ) : (
+                                                        <Badge variant="gold">A Pagar</Badge>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button 
+                                                            onClick={() => handleDeleteCharge(item)} 
+                                                            className="p-1.5 text-ink-400 hover:text-danger-600 hover:bg-danger-50 rounded-md transition-colors"
+                                                            title="Eliminar Gasto"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="p-8">
+                                <EmptyState 
+                                    icon={DollarSign}
+                                    title="No hay gastos registrados"
+                                    description="Aún no has registrado ningún gasto operativo."
                                 />
                             </div>
                         )}
@@ -291,7 +422,7 @@ export default function FinanceOverview() {
                         ) : (
                             <div className="p-8">
                                 <EmptyState 
-                                    icon={<DollarSign size={40} className="text-ink-300" />}
+                                    icon={DollarSign}
                                     title="No hay planes configurados"
                                     description="Crea tu primer plan de precios para comenzar a facturar servicios y membresías."
                                     action={{
@@ -332,6 +463,11 @@ export default function FinanceOverview() {
                 isOpen={!!chargeToEdit}
                 onClose={() => setChargeToEdit(null)}
                 charge={chargeToEdit}
+            />
+
+            <RegistrarGastoModal
+                isOpen={showRegistrarGasto}
+                onClose={() => setShowRegistrarGasto(false)}
             />
         </div>
     );
