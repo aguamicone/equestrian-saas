@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { Card, EmptyState, PageHeader } from '../../components/ui';
-import { Send, Activity, Droplets, Package, Stethoscope, Hammer, Zap, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Send, Activity, Droplets, Package, Stethoscope, Hammer, Zap, Clock, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
 
 const ICON_MAP = {
     saddle: Zap,
@@ -24,6 +24,7 @@ export default function ServiceRequest() {
     const [selectedHorseId, setSelectedHorseId] = useState(null);
     const [selectedService, setSelectedService] = useState(null);
     const [notes, setNotes] = useState('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState(null);
@@ -62,6 +63,7 @@ export default function ServiceRequest() {
                 serviceId: selectedService.id,
                 category: selectedService.category,
                 details: notes,
+                dateRequested: date,
                 timeRequested: time,
                 price: selectedService.price,
                 autoApprove: selectedService.autoApprove
@@ -179,23 +181,35 @@ export default function ServiceRequest() {
                         <h3 className="text-ink-800 font-bold mb-4 border-b border-ink-200 pb-2">{selectedService.name}</h3>
                         
                         {selectedService.category === 'quick_action' && (
-                            <div className="mb-4">
-                                <label className="text-sm text-ink-600 mb-2 flex items-center gap-2"><Clock size={16}/> Horario (Opcional)</label>
-                                <input 
-                                    type="time" 
-                                    className="input-field p-3 transition-colors outline-none disabled:opacity-50 disabled:bg-ink-50"
-                                    value={time}
-                                    onChange={(e) => setTime(e.target.value)}
-                                    disabled={isSubmitting}
-                                />
-                                <p className="text-[11px] text-ink-500 mt-1">Podés dejarlo en blanco para que se haga a la brevedad.</p>
+                            <div className="mb-4 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-ink-600 mb-2 flex items-center gap-2"><Calendar size={16}/> Fecha</label>
+                                    <input 
+                                        type="date" 
+                                        className="input-field p-3 transition-colors outline-none w-full disabled:opacity-50 disabled:bg-ink-50"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        disabled={isSubmitting}
+                                        min={new Date().toISOString().split('T')[0]}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-ink-600 mb-2 flex items-center gap-2"><Clock size={16}/> Horario (Opcional)</label>
+                                    <input 
+                                        type="time" 
+                                        className="input-field p-3 transition-colors outline-none w-full disabled:opacity-50 disabled:bg-ink-50"
+                                        value={time}
+                                        onChange={(e) => setTime(e.target.value)}
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
                             </div>
                         )}
 
                         <div>
                             <label className="text-sm text-ink-600 mb-2 block">Notas adicionales</label>
                             <textarea
-                                className="input-field p-3 transition-colors outline-none disabled:opacity-50 disabled:bg-ink-50"
+                                className="input-field p-3 transition-colors outline-none w-full disabled:opacity-50 disabled:bg-ink-50"
                                 placeholder="Detalles, ubicación en el club o especificaciones..."
                                 rows={2}
                                 value={notes}

@@ -204,7 +204,11 @@ service cloud.firestore {
       allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
       allow create: if isSuperAdmin() || (
         isCreatingForMyTenant() &&
-        (getUserData().role == 'tenantAdmin' || getUserData().role == 'staff')
+        (
+          getUserData().role == 'tenantAdmin' || 
+          getUserData().role == 'staff' || 
+          (getUserData().role == 'client' && request.resource.data.category == 'client_request' && request.resource.data.clientId == request.auth.uid)
+        )
       );
       allow update: if isSuperAdmin() || (
         isUpdatingMyTenantDoc() &&

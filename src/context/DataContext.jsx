@@ -287,13 +287,16 @@ export function DataProvider({ children }) {
         notify(customMsg || 'Registro guardado exitosamente', 'success');
     };
 
-    const createServiceRequest = async ({ clientId, horseId, serviceId, serviceName, category, details, timeRequested, price, autoApprove }) => {
+    const createServiceRequest = async ({ clientId, horseId, serviceId, serviceName, category, details, dateRequested, timeRequested, price, autoApprove }) => {
         if (!currentTenant?.id) return { success: false, error: 'Tenant no detectado.' };
         if (!clientId || !horseId || !serviceId) return { success: false, error: 'Datos incompletos.' };
         
         try {
             const status = autoApprove ? 'pending_staff' : 'pending_admin';
             
+            const horse = horses.find(h => h.id === horseId);
+            const horseName = horse?.name || 'tu caballo';
+
             const requestRef = await addDoc(collection(db, 'REQUESTS'), {
                 tenantId: currentTenant.id,
                 clientId,
@@ -302,6 +305,7 @@ export function DataProvider({ children }) {
                 serviceId,
                 category,
                 details: details || '',
+                dateRequested: dateRequested || new Date().toISOString().split('T')[0],
                 timeRequested: timeRequested || '',
                 price: Number(price || 0),
                 assigneeId: null,
@@ -310,15 +314,29 @@ export function DataProvider({ children }) {
                 timestamp: new Date().toISOString(),
                 date: new Date().toISOString()
             });
+
+            // AL MISMO TIEMPO generamos una cita en el calendario porque asumimos que ya está hablado (Feedback del usuario)
+            await addDoc(collection(db, 'ROUTINES'), {
+                tenantId: currentTenant.id,
+                horseId,
+                horseName, // <-- Added horseName so CalendarWidget displays it
+                type: serviceName, // o nombre de la rutina
+                activityType: serviceName, // <-- Added activityType so CalendarWidget displays it
+                category: 'client_request',
+                date: dateRequested || new Date().toISOString().split('T')[0], // Usa la fecha elegida
+                time: timeRequested || null,
+                status: 'pending', // Pending for staff to mark as done
+                description: details || '',
+                sourceRequestId: requestRef.id,
+                clientId
+            });
             
             const staffList = tenantUsers.filter(u => u.role === 'staff');
-            const horse = horses.find(h => h.id === horseId);
-            const horseName = horse?.name || 'tu caballo';
             
             const notifPromises = staffList.map(staff => 
                 sendNotification(
                     staff.uid,
-                    `Nueva solicitud: ${serviceName} para ${horseName}`,
+                    `Nueva solicitud agendada: ${serviceName} para ${horseName}`,
                     'service_request'
                 )
             );
@@ -331,9 +349,7 @@ export function DataProvider({ children }) {
                 details: `${clientName} solicitó ${serviceName} para ${horseName}`,
                 horseId,
                 clientId
-            });
-            
-            notify('Solicitud de servicio enviada', 'success');
+            }, 'Solicitud de servicio enviada');
             
             return { success: true, requestId: requestRef.id };
         } catch (error) {
