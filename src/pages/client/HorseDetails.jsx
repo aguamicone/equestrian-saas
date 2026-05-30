@@ -77,7 +77,7 @@ export default function HorseDetails() {
             const fileRef = ref(storage, `horses/${id}/profile_${Date.now()}`);
             await uploadBytes(fileRef, file);
             const url = await getDownloadURL(fileRef);
-            await updateRow('horses', id, { photo: url });
+            await updateRow('HORSES', id, { photo: url });
         } catch (err) {
             console.error("Error al subir foto:", err);
             alert("No se pudo subir la foto. Asegurate de tener conexión y el plan Blaze activado.");

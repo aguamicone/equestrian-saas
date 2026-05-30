@@ -117,7 +117,8 @@ service cloud.firestore {
 
     // ----- HORSES -----
     // Read: superAdmin o miembros del tenant
-    // Create/Update/Delete: solo tenantAdmin
+    // Create/Delete: solo tenantAdmin
+    // Update: tenantAdmin o el propio cliente dueño del caballo (para subir fotos)
     match /HORSES/{horseId} {
       allow read: if isSignedIn() && (isSuperAdmin() || belongsToTenant(resource.data.tenantId));
       allow create: if isSuperAdmin() || (
@@ -126,7 +127,10 @@ service cloud.firestore {
       );
       allow update: if isSuperAdmin() || (
         isUpdatingMyTenantDoc() &&
-        getUserData().role == 'tenantAdmin'
+        (
+          getUserData().role == 'tenantAdmin' ||
+          (getUserData().role == 'client' && resource.data.ownerId == request.auth.uid)
+        )
       );
       allow delete: if isSuperAdmin() || (
         isDeletingMyTenantDoc() &&

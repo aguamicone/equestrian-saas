@@ -2,12 +2,11 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      // Allow read if signed in and belongs to tenant (requires custom metadata or path structure)
-      // For now, simple auth check
+      // Allow read if signed in
       allow read: if request.auth != null;
       
-      // Only allow upload if signed in
-      allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024; // 5MB limit
+      // Allow upload if signed in (Increased limit to 30MB for mobile photos)
+      allow write: if request.auth != null && request.resource.size < 30 * 1024 * 1024;
     }
   }
 }
