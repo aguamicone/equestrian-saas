@@ -7,9 +7,10 @@ import GenerarCargosMensualesModal from '../../components/finanzas/modals/Genera
 import PricingPlanModal from '../../components/finanzas/modals/PricingPlanModal';
 import MarkAsPaidModal from '../../components/horses/modals/MarkAsPaidModal';
 import RegistrarGastoModal from '../../components/finanzas/modals/RegistrarGastoModal';
+import FinanceReports from '../../components/finanzas/FinanceReports';
 
 export default function FinanceOverview() {
-    const { finances, pricingPlans, tenantUsers, deletePendingCharge, deleteRow } = useData();
+    const { finances, pricingPlans, tenantUsers, horses, deletePendingCharge, deleteRow } = useData();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Modal State
@@ -73,7 +74,8 @@ export default function FinanceOverview() {
     const tabsConfig = [
         { key: 'overview', label: 'Resumen' },
         { key: 'expenses', label: 'Gastos' },
-        { key: 'pricing', label: 'Planes de Precio' }
+        { key: 'pricing', label: 'Planes de Precio' },
+        { key: 'reports', label: 'Reportes' }
     ];
 
     return (
@@ -168,12 +170,14 @@ export default function FinanceOverview() {
                         </div>
                         {finances.length > 0 ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
+                                <table className="w-full text-left border-collapse min-w-[800px]">
                                     <thead className="bg-ink-50 text-ink-500 border-b border-ink-200">
                                         <tr>
                                             <th className="p-4 font-medium text-sm">Fecha</th>
                                             <th className="p-4 font-medium text-sm">Descripción</th>
                                             <th className="p-4 font-medium text-sm">Categoría</th>
+                                            <th className="p-4 font-medium text-sm">Cliente</th>
+                                            <th className="p-4 font-medium text-sm">Caballo</th>
                                             <th className="p-4 font-medium text-sm text-right">Monto</th>
                                             <th className="p-4 font-medium text-sm text-center">Estado</th>
                                             <th className="p-4 font-medium text-sm text-right">Acciones</th>
@@ -183,6 +187,7 @@ export default function FinanceOverview() {
                                         {[...finances].sort((a, b) => b.date.localeCompare(a.date)).map(item => {
                                             const isIncome = item.type === 'income';
                                             const isPayment = item.type === 'payment';
+                                            const isExpense = item.type === 'expense';
                                             const isPending = item.status === 'pending' || item.status === 'overdue';
 
                                             let statusBadge = null;
@@ -192,17 +197,30 @@ export default function FinanceOverview() {
                                                     : <Badge variant="success">Cobrado</Badge>;
                                             } else if (isPayment) {
                                                 statusBadge = <Badge variant="success">Pago Recibido</Badge>;
+                                            } else if (isExpense) {
+                                                statusBadge = item.status === 'paid'
+                                                    ? <Badge variant="success">Pagado</Badge>
+                                                    : <Badge variant="gold">A Pagar</Badge>;
                                             } else {
-                                                statusBadge = <Badge variant="neutral">Pagado</Badge>;
+                                                statusBadge = <Badge variant="neutral">Completado</Badge>;
                                             }
+
+                                            // Resolve client and horse names
+                                            const clientName = item.clientId ? (tenantUsers.find(u => u.uid === item.clientId)?.displayName || 'Cliente Eliminado') : '-';
+                                            const horseName = item.horseId ? (horses?.find(h => h.id === item.horseId)?.name || 'Caballo Eliminado') : '-';
 
                                             return (
                                                 <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
                                                     <td className="p-4 text-sm text-ink-500">{item.date}</td>
-                                                    <td className="p-4 font-medium">{item.description}</td>
+                                                    <td className="p-4 font-medium">
+                                                        {item.description}
+                                                        {isExpense && item.provider && <div className="text-xs text-ink-500">{item.provider}</div>}
+                                                    </td>
                                                     <td className="p-4">
                                                         <Badge variant="neutral">{item.category}</Badge>
                                                     </td>
+                                                    <td className="p-4 text-sm font-medium">{clientName}</td>
+                                                    <td className="p-4 text-sm font-medium">{horseName}</td>
                                                     <td className={`p-4 text-right font-bold font-mono text-base ${isIncome || isPayment ? 'text-success-700' : 'text-danger-700'}`}>
                                                         {isIncome || isPayment ? '+' : '-'}${item.amount.toLocaleString()}
                                                     </td>
@@ -271,7 +289,7 @@ export default function FinanceOverview() {
                                 <option value="Mantenimiento">Mantenimiento</option>
                                 <option value="Limpieza">Limpieza</option>
                                 <option value="Proveedores">Proveedores</option>
-                                <option value="Personal">Personal</option>
+                                <option value="Pago de personal">Pago de personal</option>
                                 <option value="Servicios (Luz, Agua, etc)">Servicios</option>
                                 <option value="Otros">Otros</option>
                             </select>
@@ -434,6 +452,10 @@ export default function FinanceOverview() {
                         )}
                     </Card>
                 </div>
+            )}
+
+            {activeTab === 'reports' && (
+                <FinanceReports finances={finances} />
             )}
 
             <PricingPlanModal 

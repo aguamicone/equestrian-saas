@@ -8,7 +8,7 @@ const CATEGORIAS_GASTO = [
     'Mantenimiento',
     'Limpieza',
     'Proveedores',
-    'Personal',
+    'Pago de personal',
     'Servicios (Luz, Agua, etc)',
     'Otros'
 ];
